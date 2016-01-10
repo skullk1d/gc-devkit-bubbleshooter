@@ -1,0 +1,5 @@
+build/
+modules
+.DS_Store
+.version
+**/node_modules
