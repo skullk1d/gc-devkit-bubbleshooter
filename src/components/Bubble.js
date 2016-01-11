@@ -24,6 +24,8 @@ exports = Class(ui.View, function (supr) {
 		});
 
 		this.opts = opts;
+		this.id = opts.id;
+		this._bubType = opts.bubType;
 
 		supr(this, 'init', [opts]);
 
@@ -34,11 +36,13 @@ exports = Class(ui.View, function (supr) {
 		// collision circle
 		this.collisionCirc = new Circle(this.opts);
 
-		this._bubType = Math.floor(Math.random() * (bubImgs.length - 1 ));
+		if (this.opts.bubType === undefined) {
+			this._bubType = Math.floor(Math.random() * (bubImgs.length - 1 ));
+		}
 
 		this._bubImage = new ImageView({
 			superview: this,
-			image: bubImgs[this._bubType], // TODO: randomize, use setImage
+			image: bubImgs[this._bubType], // TODO: ability to update, use setImage
 			x: this.opts.x,
 			y: this.opts.y,
 			width: this.opts.width,
