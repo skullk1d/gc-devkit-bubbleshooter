@@ -23,7 +23,7 @@ exports = Class(ui.View, function (supr) {
 			x: 0,
 			y: 0,
 			width: 320,
-			height: 480,
+			height: 480
 		});
 
 		supr(this, 'init', [options]);
@@ -47,6 +47,16 @@ exports = Class(ui.View, function (supr) {
 
 		this.bubbleGrid = new BubbleGrid({ superview: this });
 		this.addSubview(this.bubbleGrid);
+
+		this.setupEvents();
+	};
+
+	this.setupEvents = function () {
+		// DEBUG: add/remove bubbles to hexagon on tap
+		var grid = this.bubbleGrid;
+		this.onInputSelect = function (e, point) {
+			(grid.getBubbleAt(point) ? grid.removeBubble : grid.addBubble).call(grid, { point: point });
+		};
 	};
 
 	this.startGame = function () {

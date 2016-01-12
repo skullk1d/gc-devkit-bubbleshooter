@@ -52,12 +52,21 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		// hexagons are now setup, now create the grid
 		this._hexGrid = new HT.Grid(this._gridWidth, this._gridHeight);
 
-		this.bubbles = {};
+		// setup canvas layers for hex grid and bubble grid
+		var Canvas = device.get('Canvas');
 
-		// log this hexagon on tap
-		/*this._canvasGrid.addEventListener('touchend', e => {
-			console.log('tapped', e);
-		});*/
+		this._canvasGrid = new Canvas({width: this._gridWidth, height: this._gridHeight});
+		this._contextGrid = this._canvasGrid.getContext('2d');
+
+		this._canvasBubbles = new Canvas({width: this._gridWidth, height: this._gridHeight});
+		this._contextBubbles = this._canvasBubbles.getContext('2d');
+
+		this.reset();
+
+		this.setupEvents();
+	};
+
+	this.setupEvents = function () {
 	};
 
 	this.fillToRow = function (rowNum) {
@@ -84,8 +93,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 	this.addBubble = function (params) {
 		params = params || {};
-
-		var hex = params.hex || this._hexGrid.Hexes[params.id] || this._hexGrid.GetHexAt(params.point);
+		var hex = params.hex || this._getHex(params);
 
 		if (!hex) {
 			return console.error('could not add bubble to hex grid');
@@ -106,30 +114,46 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 	this.removeBubble = function (params) {
 		params = params || {};
-
-		var hex = params.hex || this._hexGrid.Hexes[params.id] || this._hexGrid.GetHexAt(params.point);
+		var hex = params.hex || this._getHex(params);
 
 		if (!hex) {
 			return console.error('could not remove bubble from hex grid');
 		}
 
-		delete this.bubbles[hex.Id];
+		var bubble = this.bubbles[hex.Id];
+		if (!bubble) {
+			return console.error('hex', hex.Id, 'does not contain a bubble');
+		}
+		bubble.toRemove = true;
+	};
+
+	this.getBubbleAt = function (point) {
+		var hex = this._getHex({ point: point });
+		if (!hex) {
+			return console.warn('Requested point outside of hex grid');
+		}
+		return this.bubbles[hex.Id];
+	};
+
+	// private
+
+	this._getHex = function (params) {
+		params = params || {};
+		if (params.point) {
+			params.point = { X: params.point.x, Y: params.point.y }; // adapted from HT class
+		}
+
+		// can retrieve by point or id
+		var hex = this._hexGrid.Hexes[params.id] || this._hexGrid.GetHexAt(params.point);
+		return hex;
 	};
 
 	this.reset = function () {
 		this.bubbles = {};
 	};
 
-	this.draw = function (ctx) { // pass in context of view in which grid exists
-		// setup canvas layers for hex grid and bubble grid
-		var Canvas = device.get('Canvas');
-
-		this._canvasGrid = new Canvas({width: this._gridWidth, height: this._gridHeight});
-		this._contextGrid = this._canvasGrid.getContext('2d');
-
-		this._canvasBubbles = new Canvas({width: this._gridWidth, height: this._gridHeight});
-		this._contextBubbles = this._canvasBubbles.getContext('2d');
-
+	this.draw = function (ctx) {
+		// pass in context of view in which grid exists
 		this._contextGrid.clearRect(0, 0, this._gridWidth, this._gridHeight);
 
 		// draw hexes to hex grid canvas and their bubbles to bubble canvas
@@ -138,7 +162,14 @@ var BubbleGrid = Class(ui.View, function (supr) {
 			curHex.draw(this._contextGrid);
 
 			var bubble = this.bubbles[curHex.Id];
-			if (bubble) {
+			if (!bubble) {
+				continue;
+			}
+
+			if (bubble.toRemove) {
+				this.removeSubview(bubble);
+				delete this.bubbles[bubble.id];
+			} else {
 				this.addSubview(bubble);
 			}
 		}
