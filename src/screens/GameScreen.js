@@ -53,15 +53,21 @@ exports = Class(ui.View, function (supr) {
 
 	this.setupEvents = function () {
 		// DEBUG: add/remove bubbles to hexagon on tap
-		var grid = this.bubbleGrid;
+		// note: keep around for CREATE YOUR OWN LEVEL feature?
+		/*var grid = this.bubbleGrid;
 		this.onInputSelect = function (e, point) {
 			(grid.getBubbleAt(point) ? grid.removeBubble : grid.addBubble).call(grid, { point: point });
-		};
+		};*/
 	};
 
 	this.startGame = function () {
 		// init bubbles
-		this.bubbleGrid.fillToRow(8);
+		// DEBUG: example level building
+		this.bubbleGrid.fillRows(2);
+		this.bubbleGrid.fillRows(7, 8);
+		this.bubbleGrid.fillRows(11,12);
+		this.bubbleGrid.fillRows(16, 20);
+		this.bubbleGrid.fillRows(26);
 	};
 
 	this.render = function (context) {

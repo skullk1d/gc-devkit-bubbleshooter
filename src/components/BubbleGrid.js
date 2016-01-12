@@ -11,7 +11,6 @@ import src.components.HexagonTools as HT;
 import src.components.HexagonTools.Grid;
 
 const HEX_WIDTH = 32;
-const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 var BubbleGrid = Class(ui.View, function (supr) {
 	this.init = function (opts) {
@@ -30,6 +29,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 	this.build = function () {
 		// shouldn't need to modify underlying hex grid once created, only update bubbles after
+		this.bubbles = {};
 
 		// setup static hexagon properties
 		var hexWidth = HEX_WIDTH;
@@ -69,25 +69,31 @@ var BubbleGrid = Class(ui.View, function (supr) {
 	this.setupEvents = function () {
 	};
 
-	this.fillToRow = function (rowNum) {
-		this.reset();
+	this.fillRows = function (rowFrom, rowTo) {
+		// inclusive rows, 1-indexed
 
-		// starting num rows of bubbles
-		var rowLetter = LETTERS[rowNum] || 'Z';
+		/*var rowFromLetter = LETTERS[rowFrom] || 'A';
+		var rowToLetter = LETTERS[rowTo] || rowFromLetter;*/
 
-		var didInitBubs = false;
-		for(var h in this._hexGrid.Hexes) {
-			// draw the hexes
-			var curHex = this._hexGrid.Hexes[h];
+		rowTo = rowTo || rowFrom; // incl zero
 
-			// populate bubbles only to init num rows
-			// note: hex PathCoOrd X Y is this._hexGrid x y, x y is page x y
-			if (curHex.Id.indexOf(rowLetter) > -1 || didInitBubs) {
-				didInitBubs = true;
-				continue;
+		// visual coords are 1-indexed but grid manages with zero-index
+		rowFrom -= 1;
+
+		// 4 stacked, connected offset hexes leave 20% free space, thus:
+		var hexesPerWidth = Math.floor(this._gridWidth / (HEX_WIDTH * 0.8));
+
+		// use row-col coords to get the proper hex ids to populate
+		// note: need to do this because rows based on letter, not number
+		// note: odd rows have hexes with odd number ids, same as even
+		var i, j;
+		for (i = rowFrom; i <= rowTo; i += 1) {
+			var colStart = i % 2 === 0 ? 0 : 1; // even or odd (raw cols/rows are zero indexed)
+			for (j = colStart; j < hexesPerWidth; j += 2) { // every other
+				var hexId = this._hexGrid.GetHexId(i, j); // row, col
+				var curHex = this._hexGrid.GetHexById(hexId);
+				this.addBubble({ hex: curHex });
 			}
-
-			this.addBubble({ hex: curHex });
 		}
 	};
 
@@ -135,21 +141,10 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		return this.bubbles[hex.Id];
 	};
 
-	// private
-
-	this._getHex = function (params) {
-		params = params || {};
-		if (params.point) {
-			params.point = { X: params.point.x, Y: params.point.y }; // adapted from HT class
-		}
-
-		// can retrieve by point or id
-		var hex = this._hexGrid.Hexes[params.id] || this._hexGrid.GetHexAt(params.point);
-		return hex;
-	};
-
 	this.reset = function () {
-		this.bubbles = {};
+		for (var id in this.bubbles) {
+			this.removeBubble({ id: id });
+		}
 	};
 
 	this.draw = function (ctx) {
@@ -179,6 +174,19 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 	this.render = function (ctx) {
 		this.draw(ctx);
+	};
+
+	// private
+
+	this._getHex = function (params) {
+		params = params || {};
+		if (params.point) {
+			params.point = { X: params.point.x, Y: params.point.y }; // adapted from HT class
+		}
+
+		// can retrieve by point or id
+		var hex = this._hexGrid.Hexes[params.id] || this._hexGrid.GetHexAt(params.point);
+		return hex;
 	};
 });
 
