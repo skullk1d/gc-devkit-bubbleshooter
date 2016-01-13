@@ -1,7 +1,10 @@
 import device;
+import ui.ImageView;
+import ui.resource.Image as Image;
 import ui.View;
 
 import src.components.BubbleGrid as BubbleGrid;
+import src.components.Shooter as Shooter;
 
 /*
  * The game screen is a singleton view that consists of
@@ -13,6 +16,8 @@ import src.components.BubbleGrid as BubbleGrid;
  const VIEW_WIDTH = 320;
  const VIEW_HEIGHT = 480;
 
+ var bgLvl1 = new Image({ url: 'resources/images/bgLvl1.png' });
+
 /* The GameScreen view is a child of the main application.
  * By adding the scoreboard and the grid as it's children,
  * everything is visible in the scene graph.
@@ -22,8 +27,8 @@ exports = Class(ui.View, function (supr) {
 		options = merge(options, {
 			x: 0,
 			y: 0,
-			width: 320,
-			height: 480
+			width: VIEW_WIDTH,
+			height: VIEW_HEIGHT
 		});
 
 		supr(this, 'init', [options]);
@@ -42,11 +47,39 @@ exports = Class(ui.View, function (supr) {
 		var y_pad = 25;
 		var layout = [[1, 0, 1], [0, 1, 0], [1, 0, 1]]; // TODO: adapt this bubble layout
 
+		var shooterHeight = BubbleGrid.Static.HEX_WIDTH;
+		var bubbleGridOffsetY = 135;
+
 		this.style.width = VIEW_WIDTH;
 		this.style.height = VIEW_HEIGHT;
 
-		this.bubbleGrid = new BubbleGrid({ superview: this });
-		this.addSubview(this.bubbleGrid);
+		// bg
+		this.background = new ui.ImageView({
+			superview: this,
+			image: bgLvl1,
+			x: 0,
+			y: 0,
+			width: VIEW_WIDTH,
+			height: VIEW_HEIGHT
+		});
+
+		// grid
+		this.bubbleGrid = new BubbleGrid({
+			superview: this,
+			width: VIEW_WIDTH,
+			height: VIEW_HEIGHT - shooterHeight - bubbleGridOffsetY,
+			x: BubbleGrid.Static.HEX_WIDTH * 0.2,
+			y: bubbleGridOffsetY // based on bg art
+		});
+
+		// shooter
+		this.shooter = new Shooter({
+			superview: this,
+			x: 0,
+			y: VIEW_HEIGHT - shooterHeight,
+			width: VIEW_WIDTH,
+			height: shooterHeight
+		});
 
 		this.setupEvents();
 	};
@@ -58,6 +91,18 @@ exports = Class(ui.View, function (supr) {
 		this.onInputSelect = function (e, point) {
 			(grid.getBubbleAt(point) ? grid.removeBubble : grid.addBubble).call(grid, { point: point });
 		};*/
+
+		// capture touches for aim and launch
+		this.onInputStart = function (evt, point) {
+			this.shooter.aimAt(point);
+		};
+		this.onInputMove = function (evt, point) {
+			this.shooter.aimAt(point);
+		};
+		this.onInputSelect = function (evt, point) {
+			this.shooter.aimAt(point);
+			this.shooter.launchAt(point);
+		};
 	};
 
 	this.startGame = function () {
@@ -66,8 +111,6 @@ exports = Class(ui.View, function (supr) {
 		this.bubbleGrid.fillRows(2);
 		this.bubbleGrid.fillRows(7, 8);
 		this.bubbleGrid.fillRows(11,12);
-		this.bubbleGrid.fillRows(16, 20);
-		this.bubbleGrid.fillRows(26);
 	};
 
 	this.render = function (context) {

@@ -19,8 +19,8 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		});
 
 		this.opts = opts;
-		this._gridWidth = opts.superview.style.width;
-		this._gridHeight = opts.superview.style.height;
+		this._gridWidth = opts.width; // opts.superview.style.width;
+		this._gridHeight = opts.height; // opts.superview.style.height - opts.y;
 
 		supr(this, 'init', [opts]);
 
@@ -189,5 +189,9 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		return hex;
 	};
 });
+
+BubbleGrid.Static = {
+	HEX_WIDTH: HEX_WIDTH
+};
 
 exports = BubbleGrid;

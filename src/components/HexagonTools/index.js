@@ -1,4 +1,7 @@
-/* adapted from mpalmerlee's HexagonTools repo for use with GC devkit */
+/*
+adapted from mpalmerlee's HexagonTools repo for use with GC devkit
+https://github.com/mpalmerlee/HexagonTools
+*/
 
 var HexagonTools = Class(function() { // HT
 	var HT = this;

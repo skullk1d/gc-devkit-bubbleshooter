@@ -37,7 +37,7 @@ exports = Class(ui.View, function (supr) {
 		this.collisionCirc = new Circle(this.opts);
 
 		if (this.opts.bubType === undefined) {
-			this._bubType = Math.floor(Math.random() * (bubImgs.length - 1 ));
+			this._bubType = Math.floor(Math.random() * (bubImgs.length));
 		}
 
 		this._bubImage = new ImageView({
