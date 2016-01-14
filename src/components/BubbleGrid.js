@@ -20,6 +20,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		this.opts = opts;
 		this._gridWidth = opts.width; // opts.superview.style.width;
 		this._gridHeight = opts.height; // opts.superview.style.height - opts.y;
+		this.debugMode = opts.debugMode;
 
 		supr(this, 'init', [opts]);
 
@@ -83,7 +84,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		rowFrom -= 1;
 
 		// 4 stacked, connected offset hexes leave 20% free space, thus:
-		var hexesPerWidth = Math.floor(this._gridWidth / (HEX_WIDTH * 0.8));
+		var hexesPerWidth = Math.round(this._gridWidth / (HEX_WIDTH * 0.8));
 
 		// use row-col coords to get the proper hex ids to populate
 		// note: need to do this because rows based on letter, not number
@@ -118,6 +119,8 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 		// map hex grid with bubble view
 		this.bubbles[hex.Id] = bubble;
+
+		return bubble;
 	};
 
 	this.removeBubble = function (params) {
@@ -143,6 +146,50 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		return this.bubbles[hex.Id];
 	};
 
+	this.getClusterAt = function (bubble) {
+		var neighbors = [];
+
+		var bubHex = this._hexGrid.GetHexById(bubble.id);
+		var hexCoord = {
+			coOrdX: bubHex.PathCoOrdX,
+			coOrdY: bubHex.PathCoOrdY
+		};
+
+		// note: letters are horizontal, coOrdY-coOrdXs are num
+		// pathCoOrd is coOrdY-coOrdX hex coords
+		// hexes exist in clusters of 7, process clockwise, from topleft neighbor
+		var transforms = [
+			{ coOrdX: -1, coOrdY: -1 },
+			{ coOrdX: 0, coOrdY: -1 },
+			{ coOrdX: 1, coOrdY: 0 },
+			{ coOrdX: 1, coOrdY: 1 },
+			{ coOrdX: 0, coOrdY: 1 },
+			{ coOrdX: -1, coOrdY: 0 },
+		];
+
+		for (var i = 0; i < transforms.length; i += 1) {
+			var trans = transforms[i];
+			var neighborCoOrd = {
+				coOrdX: (hexCoord.coOrdX + trans.coOrdX),
+				coOrdY: (hexCoord.coOrdY + trans.coOrdY)
+			};
+
+			// get hex Id which matches bubble id, if exists
+			var neighborHex = this._hexGrid.GetHexByCoOrd(neighborCoOrd.coOrdX, neighborCoOrd.coOrdY);
+			if (!neighborHex) { // reached edge of grid
+				continue;
+			}
+
+			var neighborBub = this.bubbles[neighborHex.Id];
+
+			if (neighborBub) {
+				neighbors.push(neighborBub);
+			}
+		}
+
+		return neighbors;
+	};
+
 	this.reset = function () {
 		for (var id in this.bubbles) {
 			this.removeBubble({ id: id });
@@ -156,7 +203,9 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		// draw hexes to hex grid canvas and their bubbles to bubble canvas
 		for(var h in this._hexGrid.Hexes) {
 			var curHex = this._hexGrid.Hexes[h];
-			curHex.draw(ctx);
+			if (this.debugMode) {
+				curHex.draw(ctx);
+			}
 
 			var bubble = this.bubbles[curHex.Id];
 			if (!bubble) {

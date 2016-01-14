@@ -18,8 +18,7 @@ import src.components.BubbleGrid as BubbleGrid;
 import src.components.Bubble as Bubble;
 
 // const
-const BUBBLE_SPEED = 0.5;
-const CIELING_Y = 135;
+const BUBBLE_SPEED = 0.4;
 
 // class
 var Shooter = Class(ui.View, function (supr) {
@@ -47,7 +46,7 @@ var Shooter = Class(ui.View, function (supr) {
 
 	this.build = function () {
 		// target arrow w anchor for rotation
-		var arrowHeight = 24;
+		var arrowHeight = 32;
 		this.targetArrow = new ui.View({
 			superview: this,
 			width: 3,
@@ -100,39 +99,7 @@ var Shooter = Class(ui.View, function (supr) {
 		this.targetArrow.style.r = this._aimRad;
 
 		console.log(this._aimRad);
-
-
-		// using Lines with relative origin, build triangle
-		/*var orthoLine = new Line(this._centerP, {x: this._centerP.x, y: point.y })
-		var aimLine = new Line(this._centerP, point);
-		var legLine = new Line(orthoLine.end, aimLine.end);
-
-		var aimRad = Math.atan2(legLine.getLength() / orthoLine.getLength());
-
-		this.targetArrow.style.r = aimRad;*/
 	};
-
-	/*this.launchAt = function (point) {
-		if (this.isLaunching) {
-			return;
-		}
-
-		this.isLaunching = true;
-
-		this._collisionBuf = [];
-
-		// use trig to find collision points, then animate
-		for (var i = 0; i < this._collisionBuf.length; i += 1) {
-			var collision = this._collisionBuf[i];
-			var nowOrThen = i ? this._animator.then : this._animator.now;
-			nowOrThen({
-				x: collision.x,
-				y: collision.y
-			});
-		}
-
-		console.log('Launching at', point.x, point.y);
-	};*/
 
 	this.tick = function (dt) { // ms
 		if (!this.shouldLaunch) {
@@ -185,7 +152,7 @@ var Shooter = Class(ui.View, function (supr) {
 		var bubWidth = this.activeBubble.style.width;
 		var bubGrid = this._bubbleGrid;
 		this.activeBubble.style.update({
-			x: bubGrid.style.x + (bubGrid.style.width / 2) - (bubWidth / 2),
+			x: bubGrid.style.x + (bubGrid.style.width / 2) - (bubWidth / 2) - bubGrid.style.x,
 			y: bubGrid.style.y + (bubGrid.style.height / 2) - (bubWidth / 2) + bubWidth,
 		});
 		this.activeBubble.setBubType(); // TODO: have next bubtype ready in queue
@@ -205,14 +172,12 @@ Shooter.Static = {
 		var y2 = rect2.getCenter().y;
 		var r2 = rect2.width / 2;
 
-		/* credit to Rembound */
-		// Calculate the distance between the centers
+		// calculate the distance between the centers (via triangles)
 		var dx = x1 - x2;
 		var dy = y1 - y2;
 		var len = Math.sqrt(dx * dx + dy * dy);
 
 		if (len < r1 + r2) {
-			// Circles intersect
 			return true;
 		}
 

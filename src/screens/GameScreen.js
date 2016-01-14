@@ -67,6 +67,7 @@ exports = Class(ui.View, function (supr) {
 
 		// grid
 		this.bubbleGrid = new BubbleGrid({
+			debugMode: true, // DEBUG
 			superview: this,
 			width: VIEW_WIDTH - (bubbleGridOffsetX * 2),
 			height: VIEW_HEIGHT - shooterHeight - bubbleGridOffsetY,
@@ -134,12 +135,13 @@ exports = Class(ui.View, function (supr) {
 
 		this.shooter.on('collided', function (point) {
 			// attach active bubble to nearest hex
-			self.bubbleGrid.addBubble({
+			var addedBubble = self.bubbleGrid.addBubble({
 				point: point,
 				bubType: this.activeBubble.bubType
 			});
 
-			// TODO: detect match / clusters
+			// detect match / clusters
+			console.log(self.bubbleGrid.getClusterAt(addedBubble));
 
 			this.reset();
 		});

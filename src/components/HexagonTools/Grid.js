@@ -1,4 +1,7 @@
-// take hexagon tools (adapted for GC devkit) and decorates
+/*
+take hexagon tools (adapted for GC devkit) and decorates, plus a couple extras I needed
+*/
+
 import src.components.HexagonTools as HT;
 
 exports = Class(function() {
@@ -75,6 +78,9 @@ exports = Class(function() {
 					h.PathCoOrdX = coOrd2++;
 			}
 		}
+
+		// needed to expose this
+		this.HexagonsByXOrYCoOrd = HexagonsByXOrYCoOrd;
 	};
 
 	HT.Grid.Static = {Letters:'ABCDEFGHIJKLMNOPQRSTUVWXYZ'};
@@ -89,6 +95,13 @@ exports = Class(function() {
 		}
 
 		return HT.Grid.Static.Letters[letterIndex] + letters + (col + 1);
+	};
+
+	/**
+	* Extended to return hex by row and col
+	*/
+	HT.Grid.prototype.GetHexByCoOrd = function (coOrdX, coOrdY) {
+		return this.HexagonsByXOrYCoOrd[coOrdX][Math.floor(coOrdY - (coOrdX/2))];
 	};
 
 	/**
@@ -123,7 +136,7 @@ exports = Class(function() {
 	};
 
 	/**
-	 * Returns a distance between two hexes
+	 * Returns hex by id lookup
 	 * @this {HT.Grid}
 	 * @return {HT.Hexagon}
 	 */
