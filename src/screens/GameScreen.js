@@ -19,6 +19,7 @@ import src.components.Shooter as Shooter;
 // const
  const VIEW_WIDTH = 320;
  const VIEW_HEIGHT = 480;
+ const MATCH_BENCH = 3; // match 3 cluster
 
  var bgLvl1 = new Image({ url: 'resources/images/bgLvl1.png' });
 
@@ -140,8 +141,32 @@ exports = Class(ui.View, function (supr) {
 				bubType: this.activeBubble.bubType
 			});
 
+			if (!addedBubble) {
+				// TODO: failed to add, trigger loseGame
+				return this.reset();
+			}
+
+			var i;
+
 			// detect match / clusters
-			console.log(self.bubbleGrid.getClusterAt(addedBubble));
+			var cluster = self.bubbleGrid.getClusterAt(addedBubble);
+			console.log('Cluster', cluster);
+			if (cluster.length >= MATCH_BENCH) {
+				// TODO: remove all bubs in the cluster
+				for (i = 0; i < cluster.length; i += 1) {
+					var bub = cluster[i];
+					self.bubbleGrid.removeBubble({ id: bub.id });
+				}
+
+				// TODO: remove floaters
+				/*var floaters = self.bubbleGrid.getFloaters();
+				if (floaters.length) {
+					for (i = 0; i < floaters.length; i += 1) {
+						floaters[i]
+					}
+				}
+				*/
+			}
 
 			this.reset();
 		});

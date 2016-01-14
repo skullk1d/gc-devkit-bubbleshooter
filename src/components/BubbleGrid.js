@@ -55,15 +55,6 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		// hexagons are now setup, now create the grid
 		this._hexGrid = new HT.Grid(gridW, gridH);
 
-		// setup canvas layers for hex grid and bubble grid
-		/*var Canvas = device.get('Canvas');*/
-
-/*		this._canvasGrid = this.getApp().getCanvas(); // new Canvas({width: gridW, height: gridH});
-*/		/*this._contextGrid = this._canvasGrid.getContext('2d');*/
-
-		/*this._canvasBubbles = new Canvas({width: gridW, height: gridH});
-		this._contextBubbles = this._canvasBubbles.getContext('2d');*/
-
 		this.reset();
 
 		this.setupEvents();
@@ -104,8 +95,9 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		params = params || {};
 		var hex = params.hex || this._getHex(params);
 
-		if (!hex) {
-			return console.error('could not add bubble to hex grid');
+		// no hex, or hex already has bubble
+		if (!hex || this.bubbles[hex.Id]) {
+			return console.warn('could not add bubble to hex grid');
 		}
 
 		var bubble = new Bubble({
@@ -146,7 +138,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		return this.bubbles[hex.Id];
 	};
 
-	this.getClusterAt = function (bubble) {
+	this.getAdjacentsAt = function (bubble) {
 		var neighbors = [];
 
 		var bubHex = this._hexGrid.GetHexById(bubble.id);
@@ -190,6 +182,39 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		return neighbors;
 	};
 
+	this.getClusterAt = function (bubble) {
+		// starting at a bubble, return all bubbles found in a cluster (Match-3)
+		var activeType = bubble.bubType;
+		var processQueue = [ bubble ].concat(this.getAdjacentsAt(bubble)); // start with self & neighbors
+		var cluster = []; // results
+
+		/*
+		solution: add neighbors of current bubble to process buffer
+		check each bubble type in the queue against the start bubble til match
+		if matching neighbor, add that neighbor to [cluster] array, then add that neighbor's adjacents to the process queue
+		keep going til there are no more bubbles in the process queue
+		*/
+		// note: flag processed bubs so if they end up as adjacents to another bub, they aren't double checked
+
+		// loop through clusters recursively until there are no more matches
+		var i, j;
+		while (processQueue.length) {
+			var curBub = processQueue.pop();
+			if (curBub.bubType === activeType && !curBub.processed) {
+				processQueue = processQueue.concat(this.getAdjacentsAt(curBub));
+				cluster.push(curBub);
+			}
+			curBub.processed = true;
+		}
+
+		// reset flags
+		for (var id in this.bubbles) {
+			this.bubbles[id].processed = false;
+		}
+
+		return cluster;
+	};
+
 	this.reset = function () {
 		for (var id in this.bubbles) {
 			this.removeBubble({ id: id });
@@ -198,8 +223,6 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 	this.draw = function (ctx) {
 		// pass in context of view in which grid exists
-/*		this._contextGrid.clearRect(0, 0, this._gridWidth, this._gridHeight);
-*/
 		// draw hexes to hex grid canvas and their bubbles to bubble canvas
 		for(var h in this._hexGrid.Hexes) {
 			var curHex = this._hexGrid.Hexes[h];
@@ -219,9 +242,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 				this.addSubview(bubble);
 			}
 		}
-
-/*		ctx.drawImage(this._canvasGrid, 0, 0, 100, 100 * this._canvasGrid.height / this._canvasGrid.width);
-*/	};
+	};
 
 	this.render = function (ctx) {
 		this.draw(ctx);
@@ -236,7 +257,10 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		}
 
 		// can retrieve by point or id
-		var hex = this._hexGrid.Hexes[params.id] || this._hexGrid.GetHexAt(params.point);
+		var hex = this._hexGrid.GetHexById(params.id) ||
+			this._hexGrid.GetHexAt(params.point) ||
+			this._hexGrid.GetNearestHex(params.point);
+
 		return hex;
 	};
 });

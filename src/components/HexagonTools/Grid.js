@@ -101,7 +101,7 @@ exports = Class(function() {
 	* Extended to return hex by row and col
 	*/
 	HT.Grid.prototype.GetHexByCoOrd = function (coOrdX, coOrdY) {
-		return this.HexagonsByXOrYCoOrd[coOrdX][Math.floor(coOrdY - (coOrdX/2))];
+		return this.HexagonsByXOrYCoOrd[coOrdX] && this.HexagonsByXOrYCoOrd[coOrdX][Math.floor(coOrdY - (coOrdX/2))];
 	};
 
 	/**
