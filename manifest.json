@@ -2,7 +2,8 @@
   "appID": "0ba3f75039e6476ca48967f4b562dd16",
   "dependencies": {
     "devkit-core": "https://github.com/gameclosure/devkit-core#v4.2.1",
-    "devkit-entities": "https://github.com/gameclosure/devkit-entities.git#v0.5.3"
+    "devkit-entities": "https://github.com/gameclosure/devkit-entities.git#v0.5.3",
+    "devkit-scene": "https://github.com/gameclosure/devkit-scene.git#v0.1.9"
   },
   "shortName": "bubbleshooter",
   "studio": {

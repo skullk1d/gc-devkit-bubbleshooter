@@ -1,4 +1,9 @@
+import animate;
 import device;
+import math.geom.Rect as Rect;
+import math.geom.intersect as intersect;
+import math.geom.Line as Line;
+
 import ui.ImageView;
 import ui.resource.Image as Image;
 import ui.View;
@@ -11,8 +16,7 @@ import src.components.Shooter as Shooter;
  * a scoreboard, bubble grid, player's cannon, and bubble queue.
  */
 
-/* Some game constants.
- */
+// const
  const VIEW_WIDTH = 320;
  const VIEW_HEIGHT = 480;
 
@@ -42,13 +46,11 @@ exports = Class(ui.View, function (supr) {
 	this.build = function () {
 		this.on('app:start', this.startGame.bind(this));
 
-		var x_offset = 5;
-		var y_offset = 160;
-		var y_pad = 25;
-		var layout = [[1, 0, 1], [0, 1, 0], [1, 0, 1]]; // TODO: adapt this bubble layout
+		var layout = [[1, 0, 1], [0, 1, 0], [1, 0, 1]]; // TODO: adapt this for bubble layout
 
 		var shooterHeight = BubbleGrid.Static.HEX_WIDTH;
-		var bubbleGridOffsetY = 135;
+		var bubbleGridOffsetX = BubbleGrid.Static.HEX_WIDTH * 0.2;
+		var bubbleGridOffsetY = 68 * 2;
 
 		this.style.width = VIEW_WIDTH;
 		this.style.height = VIEW_HEIGHT;
@@ -66,9 +68,9 @@ exports = Class(ui.View, function (supr) {
 		// grid
 		this.bubbleGrid = new BubbleGrid({
 			superview: this,
-			width: VIEW_WIDTH,
+			width: VIEW_WIDTH - (bubbleGridOffsetX * 2),
 			height: VIEW_HEIGHT - shooterHeight - bubbleGridOffsetY,
-			x: BubbleGrid.Static.HEX_WIDTH * 0.2,
+			x: bubbleGridOffsetX,
 			y: bubbleGridOffsetY // based on bg art
 		});
 
@@ -78,13 +80,39 @@ exports = Class(ui.View, function (supr) {
 			x: 0,
 			y: VIEW_HEIGHT - shooterHeight,
 			width: VIEW_WIDTH,
-			height: shooterHeight
+			height: shooterHeight,
+			bubbleGrid: this.bubbleGrid // register
 		});
+
+		// boundaries
+		/*var wallLeft = new Rect({
+			x: -2,
+			y: 0,
+			width: 2,
+			height: VIEW_HEIGHT
+		});
+		var wallRight = new Rect({
+			x: VIEW_WIDTH,
+			y: 0,
+			width: 2,
+			height: VIEW_HEIGHT
+		});
+		var ceiling = new Rect({
+			x: 0,
+			y: bubbleGridOffsetY,
+			width: VIEW_WIDTH,
+			height: 2
+		});*/
+
+		// animations
+		this._animator = animate(this.shooter.activeBubble);
 
 		this.setupEvents();
 	};
 
 	this.setupEvents = function () {
+		var self = this;
+
 		// DEBUG: add/remove bubbles to hexagon on tap
 		// note: keep around for CREATE YOUR OWN LEVEL feature?
 		/*var grid = this.bubbleGrid;
@@ -101,8 +129,20 @@ exports = Class(ui.View, function (supr) {
 		};
 		this.onInputSelect = function (evt, point) {
 			this.shooter.aimAt(point);
-			this.shooter.launchAt(point);
+			this.shooter.shouldLaunch = true;
 		};
+
+		this.shooter.on('collided', function (point) {
+			// attach active bubble to nearest hex
+			self.bubbleGrid.addBubble({
+				point: point,
+				bubType: this.activeBubble.bubType
+			});
+
+			// TODO: detect match / clusters
+
+			this.reset();
+		});
 	};
 
 	this.startGame = function () {
@@ -110,10 +150,6 @@ exports = Class(ui.View, function (supr) {
 		// DEBUG: example level building
 		this.bubbleGrid.fillRows(2);
 		this.bubbleGrid.fillRows(7, 8);
-		this.bubbleGrid.fillRows(11,12);
-	};
-
-	this.render = function (context) {
-		this.bubbleGrid.draw(context);
+		this.bubbleGrid.fillRows(11,12); // TODO: use 2d array of layouts
 	};
 });

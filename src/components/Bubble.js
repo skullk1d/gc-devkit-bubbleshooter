@@ -1,5 +1,3 @@
-import entities.shapes.Circle as Circle;
-
 import ui.ImageView as ImageView;
 import ui.resource.Image as Image;
 import ui.View;
@@ -25,7 +23,7 @@ exports = Class(ui.View, function (supr) {
 
 		this.opts = opts;
 		this.id = opts.id;
-		this._bubType = opts.bubType;
+		this.bubType = opts.bubType;
 
 		supr(this, 'init', [opts]);
 
@@ -33,20 +31,36 @@ exports = Class(ui.View, function (supr) {
 	};
 
 	this.build = function () {
-		// collision circle
-		this.collisionCirc = new Circle(this.opts);
-
-		if (this.opts.bubType === undefined) {
-			this._bubType = Math.floor(Math.random() * (bubImgs.length));
-		}
-
+		// image
 		this._bubImage = new ImageView({
 			superview: this,
-			image: bubImgs[this._bubType], // TODO: ability to update, use setImage
-			x: this.opts.x,
-			y: this.opts.y,
+			image: bubImgs[this.bubType],
+			x: 0,
+			y: 0,
 			width: this.opts.width,
 			height: this.opts.height
 		});
+
+		// init
+		this.setBubType(this.bubType);
+	};
+
+	this.setBubType = function (type) {
+		type = type === undefined ? Math.floor(Math.random() * (bubImgs.length)) : type;
+
+		// ability to update
+		var img = bubImgs[type];
+		if (!img) {
+			return console.error('Bubble type', type, 'does not exist');
+		}
+		this._bubImage.setImage(img);
+		this.bubType = type;
+	};
+
+	this.getCenterP = function () {
+		return {
+			x: this.style.x + (this.style.width / 2),
+			y: this.style.y + (this.style.width / 2)
+		};
 	};
 });
