@@ -68,7 +68,7 @@ exports = Class(ui.View, function (supr) {
 
 		// grid
 		this.bubbleGrid = new BubbleGrid({
-			debugMode: true, // DEBUG
+			debugMode: false, // draw visible hex grid
 			superview: this,
 			width: VIEW_WIDTH - (bubbleGridOffsetX * 2),
 			height: VIEW_HEIGHT - shooterHeight - bubbleGridOffsetY,
@@ -85,26 +85,6 @@ exports = Class(ui.View, function (supr) {
 			height: shooterHeight,
 			bubbleGrid: this.bubbleGrid // register
 		});
-
-		// boundaries
-		/*var wallLeft = new Rect({
-			x: -2,
-			y: 0,
-			width: 2,
-			height: VIEW_HEIGHT
-		});
-		var wallRight = new Rect({
-			x: VIEW_WIDTH,
-			y: 0,
-			width: 2,
-			height: VIEW_HEIGHT
-		});
-		var ceiling = new Rect({
-			x: 0,
-			y: bubbleGridOffsetY,
-			width: VIEW_WIDTH,
-			height: 2
-		});*/
 
 		// animations
 		this._animator = animate(this.shooter.activeBubble);
@@ -146,26 +126,28 @@ exports = Class(ui.View, function (supr) {
 				return this.reset();
 			}
 
-			var i;
+			var i, bub;
 
 			// detect match / clusters
-			var cluster = self.bubbleGrid.getClusterAt(addedBubble);
-			console.log('Cluster', cluster);
+			var cluster = self.bubbleGrid.getClusterAt(addedBubble, true, true);
+
 			if (cluster.length >= MATCH_BENCH) {
-				// TODO: remove all bubs in the cluster
+				// remove all bubs in the cluster
 				for (i = 0; i < cluster.length; i += 1) {
-					var bub = cluster[i];
-					self.bubbleGrid.removeBubble({ id: bub.id });
+					bub = cluster[i];
+					self.bubbleGrid.removeBubble({ bubble: bub });
 				}
 
-				// TODO: remove floaters
-				/*var floaters = self.bubbleGrid.getFloaters();
-				if (floaters.length) {
-					for (i = 0; i < floaters.length; i += 1) {
-						floaters[i]
+				// remove floaters after matches removed
+				self.bubbleGrid.once('removedBubbles', function () {
+					var floaters = self.bubbleGrid.getFloaters();
+					if (floaters.length) {
+						for (i = 0; i < floaters.length; i += 1) {
+							bub = floaters[i];
+							self.bubbleGrid.removeBubble({ bubble: bub });
+						}
 					}
-				}
-				*/
+				});
 			}
 
 			this.reset();
@@ -175,8 +157,7 @@ exports = Class(ui.View, function (supr) {
 	this.startGame = function () {
 		// init bubbles
 		// DEBUG: example level building
-		this.bubbleGrid.fillRows(2);
-		this.bubbleGrid.fillRows(7, 8);
-		this.bubbleGrid.fillRows(11,12); // TODO: use 2d array of layouts
+		// TODO: use 2d array of layouts
+		this.bubbleGrid.fillRows(1,4);
 	};
 });

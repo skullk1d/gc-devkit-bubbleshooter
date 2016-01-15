@@ -55,7 +55,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		// hexagons are now setup, now create the grid
 		this._hexGrid = new HT.Grid(gridW, gridH);
 
-		this.reset();
+		this.sweep();
 
 		this.setupEvents();
 	};
@@ -117,16 +117,22 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 	this.removeBubble = function (params) {
 		params = params || {};
-		var hex = params.hex || this._getHex(params);
 
+		var bubble = params.bubble;
+		if (bubble) {
+			return (bubble.toRemove = true);
+		}
+
+		var hex = params.hex || this._getHex(params);
 		if (!hex) {
 			return console.error('could not remove bubble from hex grid');
 		}
 
-		var bubble = this.bubbles[hex.Id];
+		bubble = this.bubbles[hex.Id];
 		if (!bubble) {
 			return console.error('hex', hex.Id, 'does not contain a bubble');
 		}
+
 		bubble.toRemove = true;
 	};
 
@@ -182,11 +188,15 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		return neighbors;
 	};
 
-	this.getClusterAt = function (bubble) {
+	this.getClusterAt = function (bubble, matchType, reset) {
 		// starting at a bubble, return all bubbles found in a cluster (Match-3)
 		var activeType = bubble.bubType;
 		var processQueue = [ bubble ].concat(this.getAdjacentsAt(bubble)); // start with self & neighbors
 		var cluster = []; // results
+
+		if (reset) {
+			this._resetFlags(); // reset algo queue
+		}
 
 		/*
 		solution: add neighbors of current bubble to process buffer
@@ -197,33 +207,79 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		// note: flag processed bubs so if they end up as adjacents to another bub, they aren't double checked
 
 		// loop through clusters recursively until there are no more matches
-		var i, j;
 		while (processQueue.length) {
 			var curBub = processQueue.pop();
-			if (curBub.bubType === activeType && !curBub.processed) {
-				processQueue = processQueue.concat(this.getAdjacentsAt(curBub));
-				cluster.push(curBub);
+			if (curBub.processed) {
+				continue;
 			}
 			curBub.processed = true;
-		}
 
-		// reset flags
-		for (var id in this.bubbles) {
-			this.bubbles[id].processed = false;
+			if (matchType && (curBub.bubType !== activeType)) {
+				continue;
+			}
+
+			processQueue = processQueue.concat(this.getAdjacentsAt(curBub));
+			cluster.push(curBub);
 		}
 
 		return cluster;
 	};
 
-	this.reset = function () {
+	this.getFloaters = function () {
+		// return all bubbles floating in midair
+		var floaters = [];
+
+		this._resetFlags();
+
+		/*
+		solution: find all assorted clusters,
+		if any do NOT have a bubble in the top row, the closter is floating
+		iterate through all bubbles, gettin their clusters
+		process eacg cluster for at least one bubble attached to top
+		if none attached to top, concat whole cluster to [floaters]
+		*/
+
 		for (var id in this.bubbles) {
-			this.removeBubble({ id: id });
+			var curBub = this.bubbles[id];
+
+			// flagged if its own cluster was searched or was found in another's cluster, or tagged for removal
+			if (curBub.processed || curBub.toRemove) {
+				continue;
+			}
+
+			var cluster = this.getClusterAt(curBub);
+			var isFloating = true;
+
+			for (var i = 0; i < cluster.length; i += 1) {
+				var clusBub = cluster[i];
+
+				// cluster contains at least one top-row bubble
+				if (clusBub.style.y <= 0) {
+					isFloating = false;
+					break;
+				}
+			}
+
+			if (isFloating) {
+				floaters = floaters.concat(cluster);
+			}
+		}
+
+		return floaters;
+	};
+
+	this.sweep = function () {
+		for (var id in this.bubbles) {
+			this.removeBubble({ bubble: this.bubbles[id] });
 		}
 	};
 
 	this.draw = function (ctx) {
 		// pass in context of view in which grid exists
 		// draw hexes to hex grid canvas and their bubbles to bubble canvas
+		var addedBubs = [];
+		var removedBubs = [];
+
 		for(var h in this._hexGrid.Hexes) {
 			var curHex = this._hexGrid.Hexes[h];
 			if (this.debugMode) {
@@ -236,11 +292,21 @@ var BubbleGrid = Class(ui.View, function (supr) {
 			}
 
 			if (bubble.toRemove) {
+				removedBubs.push(bubble);
 				this.removeSubview(bubble);
 				delete this.bubbles[bubble.id];
 			} else {
+				addedBubs.push(bubble);
 				this.addSubview(bubble);
 			}
+		}
+
+		// emit if view data updated with redraw
+		if (addedBubs.length) {
+			this.emit('addedBubbles', addedBubs);
+		}
+		if (removedBubs.length) {
+			this.emit('removedBubbles', removedBubs);
 		}
 	};
 
@@ -262,6 +328,13 @@ var BubbleGrid = Class(ui.View, function (supr) {
 			this._hexGrid.GetNearestHex(params.point);
 
 		return hex;
+	};
+
+	this._resetFlags = function () {
+		// reset flags
+		for (var id in this.bubbles) {
+			this.bubbles[id].processed = false;
+		}
 	};
 });
 
