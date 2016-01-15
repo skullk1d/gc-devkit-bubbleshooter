@@ -24,6 +24,8 @@ import src.enums as Enums;
  const VIEW_WIDTH = 320;
  const VIEW_HEIGHT = 480;
  const MATCH_BENCH = 3; // match 3 cluster
+ const LEVEL_MULTIPLIER = 2;
+ const BUBBLE_POINTS = 50;
 
 var skin = Enums.Skins.TOON;
 var path = 'resources/images/' + skin;
@@ -60,6 +62,7 @@ exports = Class(ui.View, function (supr) {
 		]; // TODO: staggar fill rows and link at least one bubble between
 		this.currentLevel = 0;
 		this._isLaunching = false;
+		this.score = 0;
 
 		this.style.width = VIEW_WIDTH;
 		this.style.height = VIEW_HEIGHT;
@@ -99,6 +102,29 @@ exports = Class(ui.View, function (supr) {
 			bubbleGrid: this.bubbleGrid, // register
 			zIndex: 0 // if arrow or cannon should be under or over next bubble
 		});
+
+		// score
+		var scoreParams = {
+			superview: this,
+			x: 0,
+			y: 28,
+			width: 300,
+			height: 28,
+			autoSize: false,
+			size: 24,
+			verticalAlign: 'middle',
+			horizontalAlign: 'right',
+			wrap: false,
+			strokeWidth: '3',
+			strokeColor: '#403E3E',
+			color: '#fff',
+			text: '0'
+		};
+		this.scoreboard = new ui.TextView(scoreParams);
+
+		scoreParams.y = scoreParams.y - scoreParams.height;
+		scoreParams.text = 'Score';
+		var scoreLabel = new ui.TextView(scoreParams);
 
 		// animations
 		this._animator = animate(this.shooter.activeBubble);
@@ -144,6 +170,9 @@ exports = Class(ui.View, function (supr) {
 
 			// attach active bubble to nearest hex
 			function doReset() {
+				if (!self._isLaunching) {
+					return;
+				}
 				self._isLaunching = false;
 				self.shooter.reset();
 				return self.emit('resetLaunch');
@@ -161,12 +190,16 @@ exports = Class(ui.View, function (supr) {
 			// detect match / clusters
 			cluster = bubbleGrid.getClusterAt(addedBubble, true, true);
 			if (cluster.length >= MATCH_BENCH) {
+				// sound and score
 				sound.play('success');
+				self.addScore(cluster.length);
 
 				// remove floaters after matches removed
 				bubbleGrid.once('removedBubbles', function () {
 					floaters = bubbleGrid.getFloaters();
 					if (floaters.length) {
+						self.addScore(floaters.length);
+
 						// wait til everything done before allowing player to shoot again
 						bubbleGrid.once('removedBubbles', function () {
 							return doReset();
@@ -252,5 +285,11 @@ exports = Class(ui.View, function (supr) {
 			}
 		});
 		this.bubbleGrid.sweep();
+	};
+
+	this.addScore = function (numBubbles) {
+		var points = numBubbles * BUBBLE_POINTS + this.currentLevel * LEVEL_MULTIPLIER;
+		this.score += points;
+		this.scoreboard.setText(this.score.toString());
 	};
 });
