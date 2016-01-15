@@ -51,6 +51,8 @@ exports = Class(ui.View, function (supr) {
 	this.build = function () {
 		this.on('app:start', this.startGame.bind(this));
 
+		this._isLaunching = false;
+
 		var layout = [[1, 0, 1], [0, 1, 0], [1, 0, 1]]; // TODO: adapt this for bubble layout
 
 		var shooterHeight = BubbleGrid.Static.HEX_WIDTH;
@@ -117,46 +119,54 @@ exports = Class(ui.View, function (supr) {
 		};
 		this.onInputSelect = function (evt, point) {
 			this.shooter.aimAt(point);
-			this.shooter.shouldLaunch = true;
+			if (!this._isLaunching) {
+				this.shooter.shouldLaunch = true;
+				this._isLaunching = true;
+			}
 		};
 
 		this.shooter.on('collided', function (point) {
 			// attach active bubble to nearest hex
-			var addedBubble = self.bubbleGrid.addBubble({
-				point: point,
-				bubType: this.activeBubble.bubType
-			});
+			function doReset() {
+				self._isLaunching = false;
+				return self.shooter.reset();
+			}
+
+			var bubbleGrid = self.bubbleGrid;
+
+			var addedBubble = bubbleGrid.addBubbles([ point ], this.activeBubble.bubType)[0];
 
 			if (!addedBubble) {
 				// TODO: failed to add, trigger loseGame
-				return this.reset();
+				return doReset();
 			}
 
 			var i, bub;
 
 			// detect match / clusters
-			var cluster = self.bubbleGrid.getClusterAt(addedBubble, true, true);
+			var cluster = bubbleGrid.getClusterAt(addedBubble, true, true);
 
 			if (cluster.length >= MATCH_BENCH) {
 				// remove all bubs in the cluster
-				for (i = 0; i < cluster.length; i += 1) {
-					bub = cluster[i];
-					self.bubbleGrid.removeBubble({ bubble: bub });
-				}
+				bubbleGrid.removeBubbles(cluster);
 
 				// remove floaters after matches removed
-				self.bubbleGrid.once('removedBubbles', function () {
-					var floaters = self.bubbleGrid.getFloaters();
+				bubbleGrid.once('removedBubbles', function () {
+					var floaters = bubbleGrid.getFloaters();
 					if (floaters.length) {
-						for (i = 0; i < floaters.length; i += 1) {
-							bub = floaters[i];
-							self.bubbleGrid.removeBubble({ bubble: bub });
-						}
+						bubbleGrid.removeBubbles(floaters);
+
+						// wait til everything done before allowing player to shoot again
+						bubbleGrid.once('removedBubbles', function () {
+							return doReset();
+						});
+					} else {
+						return doReset();
 					}
 				});
 			}
 
-			this.reset();
+			doReset();
 		});
 	};
 

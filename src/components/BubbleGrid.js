@@ -2,6 +2,7 @@
 manages bubbles added or removed from hex grid and both hex & bubbles canvases
 Bubbles are Views and the hex grid is underlying canvas serving as a spacial map
 */
+import animate;
 
 import ui.View;
 
@@ -10,6 +11,7 @@ import src.components.HexagonTools as HT;
 import src.components.HexagonTools.Grid;
 
 const HEX_WIDTH = 32;
+const GRAVITY = 750;
 
 var BubbleGrid = Class(ui.View, function (supr) {
 	this.init = function (opts) {
@@ -30,6 +32,8 @@ var BubbleGrid = Class(ui.View, function (supr) {
 	this.build = function () {
 		// shouldn't need to modify underlying hex grid once created, only update bubbles after
 		this.bubbles = {};
+		this._addedBubs = [];
+		this._removedBubs = [];
 
 		// setup static hexagon properties
 		var hexWidth = HEX_WIDTH; // scale for native canvas
@@ -86,14 +90,15 @@ var BubbleGrid = Class(ui.View, function (supr) {
 			for (j = colStart; j < hexesPerWidth; j += 2) { // every other
 				var hexId = this._hexGrid.GetHexId(i, j); // row, col
 				var curHex = this._hexGrid.GetHexById(hexId);
-				this.addBubble({ hex: curHex });
+				this._addBubble({ id: curHex.Id });
 			}
 		}
 	};
 
-	this.addBubble = function (params) {
+	this._addBubble = function (params) {
 		params = params || {};
-		var hex = params.hex || this._getHex(params);
+
+		var hex = this._getHex(params);
 
 		// no hex, or hex already has bubble
 		if (!hex || this.bubbles[hex.Id]) {
@@ -111,16 +116,32 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 		// map hex grid with bubble view
 		this.bubbles[hex.Id] = bubble;
+		this.addSubview(bubble);
+
+		this._animateAdd(bubble);
 
 		return bubble;
 	};
 
-	this.removeBubble = function (params) {
+	this._removeBubble = function (params) {
+		// can remove bubble by bubble, hex id, or point
 		params = params || {};
 
-		var bubble = params.bubble;
+		var self = this;
+
+		function doRemove(bubble) {
+			bubble.toRemove = true; // protect from double processing
+			delete self.bubbles[bubble.id];
+
+			self._animateRemove(bubble, function () {
+				 // safe to remove after animation
+				self.removeSubview(bubble);
+			});
+		}
+
+		var bubble = params.bubble || this.bubbles[params.id];
 		if (bubble) {
-			return (bubble.toRemove = true);
+			return doRemove(bubble);
 		}
 
 		var hex = params.hex || this._getHex(params);
@@ -133,7 +154,52 @@ var BubbleGrid = Class(ui.View, function (supr) {
 			return console.error('hex', hex.Id, 'does not contain a bubble');
 		}
 
-		bubble.toRemove = true;
+		doRemove(bubble);
+	};
+
+	this.addBubbles = function (bubblesIdsOrPoints, bubType) {
+		// pass in an array of [ point ] or [ bubble ] or [ id ]
+		var arr = bubblesIdsOrPoints;
+		var addedBubbles = [];
+		var i, params;
+		for (i = 0; i < arr.length; i += 1) {
+			var item = arr[i];
+			if (item instanceof Bubble) { // bubble
+				params = { bubble: item };
+			} else if (item instanceof String) { // hex id
+				params = { id: item };
+			} else { // point
+				params = { point: item };
+			}
+
+			params.bubType = bubType; // optional
+
+			addedBubbles.push(this._addBubble(params));
+		}
+
+		this.emit('addedBubbles', addedBubbles); // return newly created bubbles
+
+		return addedBubbles;
+	};
+
+	this.removeBubbles = function (bubblesIdsOrPoints) {
+		// pass in an array of [ point ] or [ bubble ] or [ id ]
+		var arr = bubblesIdsOrPoints;
+		var i, params;
+		for (i = 0; i < arr.length; i += 1) {
+			var item = arr[i];
+			if (item instanceof Bubble) { // bubble
+				params = { bubble: item };
+			} else if (item instanceof String) { // hex or bubble id
+				params = { id: item };
+			} else { // point
+				params = { point: item };
+			}
+
+			this._removeBubble(params);
+		}
+
+		this.emit('removedBubbles');
 	};
 
 	this.getBubbleAt = function (point) {
@@ -270,43 +336,20 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 	this.sweep = function () {
 		for (var id in this.bubbles) {
-			this.removeBubble({ bubble: this.bubbles[id] });
+			this._removeBubble({ bubble: this.bubbles[id] });
 		}
 	};
 
 	this.draw = function (ctx) {
 		// pass in context of view in which grid exists
-		// draw hexes to hex grid canvas and their bubbles to bubble canvas
-		var addedBubs = [];
-		var removedBubs = [];
+		// draw hexes to hex grid canvas
+		if (!this.debugMode) {
+			return;
+		}
 
 		for(var h in this._hexGrid.Hexes) {
 			var curHex = this._hexGrid.Hexes[h];
-			if (this.debugMode) {
-				curHex.draw(ctx);
-			}
-
-			var bubble = this.bubbles[curHex.Id];
-			if (!bubble) {
-				continue;
-			}
-
-			if (bubble.toRemove) {
-				removedBubs.push(bubble);
-				this.removeSubview(bubble);
-				delete this.bubbles[bubble.id];
-			} else {
-				addedBubs.push(bubble);
-				this.addSubview(bubble);
-			}
-		}
-
-		// emit if view data updated with redraw
-		if (addedBubs.length) {
-			this.emit('addedBubbles', addedBubs);
-		}
-		if (removedBubs.length) {
-			this.emit('removedBubbles', removedBubs);
+			curHex.draw(ctx);
 		}
 	};
 
@@ -335,6 +378,23 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		for (var id in this.bubbles) {
 			this.bubbles[id].processed = false;
 		}
+	};
+
+	// animations for added / removed bubs
+	this._animateAdd = function (bubble, cb) {
+		/*animate(bubble).now({ y: this.style.height + this.style.y + 100 }, GRAVITY, animate.easeIn).then(function () {
+			if (cb) {
+				cb();
+			}
+		});*/
+	};
+
+	this._animateRemove = function (bubble, cb) {
+		animate(bubble).now({ y: this.style.height + this.style.y + 100 }, GRAVITY, animate.easeIn).then(function () {
+			if (cb) {
+				cb();
+			}
+		});
 	};
 });
 

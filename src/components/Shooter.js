@@ -115,8 +115,6 @@ var Shooter = Class(ui.View, function (supr) {
 		this._unitAimRad = this._aimRad + (Math.PI / 2); // readjust
 
 		this.targetArrow.style.r = this._aimRad;
-
-		console.log(this._aimRad);
 	};
 
 	this.tick = function (dt) { // ms
@@ -143,6 +141,7 @@ var Shooter = Class(ui.View, function (supr) {
 		// detect collisions and emit bubble's current location when collided
 		var didCollide = false;
 
+		// collisions with ceiling
 		if (bubble.style.y <= 0) {
 			didCollide = true;
 		}
@@ -153,6 +152,9 @@ var Shooter = Class(ui.View, function (supr) {
 			var bubbles = this._bubbleGrid.bubbles; // TODO? reduce class interdependecy
 			for (var b in bubbles) {
 				var gridBub = bubbles[b];
+				if (gridBub.toRemove) { // already being removed
+					continue;
+				}
 				var gridBubRect = gridBub.getBoundingShape();
 				if (Shooter.Static.circAndCirc(bubRect, gridBubRect)) {
 					didCollide = true;
