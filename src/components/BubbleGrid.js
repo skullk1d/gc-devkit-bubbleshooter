@@ -102,7 +102,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 		// no hex, or hex already has bubble
 		if (!hex || this.bubbles[hex.Id]) {
-			return console.warn('could not add bubble to hex grid');
+			return console.warn('could not add bubble to hex grid', params);
 		}
 
 		var bubble = new Bubble({
@@ -366,9 +366,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		}
 
 		// can retrieve by point or id
-		var hex = this._hexGrid.GetHexById(params.id) ||
-			this._hexGrid.GetHexAt(params.point) ||
-			this._hexGrid.GetNearestHex(params.point);
+		var hex = this._hexGrid.GetHexById(params.id) || this._hexGrid.GetNearestHex(params.point);
 
 		return hex;
 	};

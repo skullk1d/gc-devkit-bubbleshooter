@@ -10,6 +10,7 @@ import ui.View;
 
 import src.components.BubbleGrid as BubbleGrid;
 import src.components.Shooter as Shooter;
+import src.components.soundcontroller as soundcontroller;
 
 import src.enums as Enums;
 
@@ -110,6 +111,8 @@ exports = Class(ui.View, function (supr) {
 			(grid.getBubbleAt(point) ? grid.removeBubble : grid.addBubble).call(grid, { point: point });
 		};*/
 
+		var sound = soundcontroller.getSound();
+
 		// capture touches for aim and launch
 		this.onInputStart = function (evt, point) {
 			this.shooter.aimAt(point);
@@ -122,10 +125,16 @@ exports = Class(ui.View, function (supr) {
 			if (!this._isLaunching) {
 				this.shooter.shouldLaunch = true;
 				this._isLaunching = true;
+				sound.play('shoot');
 			}
 		};
 
 		this.shooter.on('collided', function (point) {
+			sound.play('bubble');
+
+			var cluster = [];
+			var floaters = [];
+
 			// attach active bubble to nearest hex
 			function doReset() {
 				self._isLaunching = false;
@@ -144,15 +153,16 @@ exports = Class(ui.View, function (supr) {
 			var i, bub;
 
 			// detect match / clusters
-			var cluster = bubbleGrid.getClusterAt(addedBubble, true, true);
-
+			cluster = bubbleGrid.getClusterAt(addedBubble, true, true);
 			if (cluster.length >= MATCH_BENCH) {
+				sound.play('success');
+
 				// remove all bubs in the cluster
 				bubbleGrid.removeBubbles(cluster);
 
 				// remove floaters after matches removed
 				bubbleGrid.once('removedBubbles', function () {
-					var floaters = bubbleGrid.getFloaters();
+					floaters = bubbleGrid.getFloaters();
 					if (floaters.length) {
 						bubbleGrid.removeBubbles(floaters);
 

@@ -201,7 +201,7 @@ Shooter.Static = {
 		var dy = y1 - y2;
 		var len = Math.sqrt(dx * dx + dy * dy);
 
-		if (len < r1 + r2) {
+		if (len < (r1 + r2)) {
 			return true;
 		}
 

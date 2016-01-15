@@ -23,7 +23,7 @@ exports = Class(GC.Application, function () {
 
 		var sound = soundcontroller.getSound();
 
-		this.view.style.backgroundColor = '#3DC1F2';
+		this.view.style.backgroundColor = '#000'; // '#3DC1F2';
 
 		// Create a stackview of size 320x480, then scale it to fit horizontally
 		// Add a new StackView to the root of the scene graph
