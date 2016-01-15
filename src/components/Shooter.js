@@ -62,9 +62,17 @@ var Shooter = Class(ui.View, function (supr) {
 		var bubWidth = BubbleGrid.Static.HEX_WIDTH;
 		this.activeBubble = new Bubble({
 			superview: this._bubbleGrid, // exists on bubble grid, for hex collisions
-			radius: bubWidth / 2,
 			width: bubWidth,
 			height: bubWidth
+		});
+
+		// bubble next in line
+		this.nextBubble = new Bubble({
+			superview: this,
+			width: bubWidth,
+			height: bubWidth,
+			x: this.targetArrow.style.x - (bubWidth * 2),
+			y: this.targetArrow.style.y + (bubWidth / 2)
 		});
 
 		this.setupEvents();
@@ -155,7 +163,11 @@ var Shooter = Class(ui.View, function (supr) {
 			x: bubGrid.style.x + (bubGrid.style.width / 2) - (bubWidth / 2) - bubGrid.style.x,
 			y: bubGrid.style.y + (bubGrid.style.height / 2) - (bubWidth / 2) + bubWidth,
 		});
-		this.activeBubble.setBubType(); // TODO: have next bubtype ready in queue
+
+		// prepare next bubbles
+		this.activeBubble.setBubType(this.nextBubble.bubType); // have next bubtype ready in queue
+		this.nextBubble.setBubType(); // random
+
 		this.shouldLaunch = false;
 	};
 });
