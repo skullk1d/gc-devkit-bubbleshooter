@@ -6,6 +6,7 @@ import math.geom.Line as Line;
 
 import ui.ImageView;
 import ui.resource.Image as Image;
+import ui.TextView;
 import ui.View;
 
 import src.components.BubbleGrid as BubbleGrid;
@@ -24,7 +25,7 @@ import src.enums as Enums;
  const VIEW_HEIGHT = 480;
  const MATCH_BENCH = 3; // match 3 cluster
 
-var skin = Enums.SKINS.TOON;
+var skin = Enums.Skins.TOON;
 var path = 'resources/images/' + skin;
 var bgLvl1 = new Image({ url: path + '/bgLvl1.png' });
 
@@ -52,16 +53,20 @@ exports = Class(ui.View, function (supr) {
 	this.build = function () {
 		this.on('app:start', this.startGame.bind(this));
 
+		this._levelLayouts = [
+			[1,4],
+			[1,6],
+			[1,8]
+		]; // TODO: staggar fill rows and link at least one bubble between
+		this.currentLevel = 0;
 		this._isLaunching = false;
 
-		var layout = [[1, 0, 1], [0, 1, 0], [1, 0, 1]]; // TODO: adapt this for bubble layout
+		this.style.width = VIEW_WIDTH;
+		this.style.height = VIEW_HEIGHT;
 
 		var shooterHeight = BubbleGrid.Static.HEX_WIDTH;
 		var bubbleGridOffsetX = BubbleGrid.Static.HEX_WIDTH * 0.2;
 		var bubbleGridOffsetY = 68 * 2;
-
-		this.style.width = VIEW_WIDTH;
-		this.style.height = VIEW_HEIGHT;
 
 		// bg
 		this.background = new ui.ImageView({
@@ -108,10 +113,12 @@ exports = Class(ui.View, function (supr) {
 		// note: keep around for CREATE YOUR OWN LEVEL feature?
 		/*var grid = this.bubbleGrid;
 		this.onInputSelect = function (e, point) {
-			(grid.getBubbleAt(point) ? grid.removeBubble : grid.addBubble).call(grid, { point: point });
+			(grid.getBubbleAt(point) ? grid.removeBubbles : grid.addBubbles).call(grid, [ { point: point } ]);
 		};*/
 
 		var sound = soundcontroller.getSound();
+
+		var bubbleGrid = this.bubbleGrid;
 
 		// capture touches for aim and launch
 		this.onInputStart = function (evt, point) {
@@ -138,10 +145,9 @@ exports = Class(ui.View, function (supr) {
 			// attach active bubble to nearest hex
 			function doReset() {
 				self._isLaunching = false;
-				return self.shooter.reset();
+				self.shooter.reset();
+				return self.emit('resetLaunch');
 			}
-
-			var bubbleGrid = self.bubbleGrid;
 
 			var addedBubble = bubbleGrid.addBubbles([ point ], this.activeBubble.bubType)[0];
 
@@ -157,33 +163,94 @@ exports = Class(ui.View, function (supr) {
 			if (cluster.length >= MATCH_BENCH) {
 				sound.play('success');
 
-				// remove all bubs in the cluster
-				bubbleGrid.removeBubbles(cluster);
-
 				// remove floaters after matches removed
 				bubbleGrid.once('removedBubbles', function () {
 					floaters = bubbleGrid.getFloaters();
 					if (floaters.length) {
-						bubbleGrid.removeBubbles(floaters);
-
 						// wait til everything done before allowing player to shoot again
 						bubbleGrid.once('removedBubbles', function () {
 							return doReset();
 						});
+						bubbleGrid.removeBubbles(floaters);
 					} else {
 						return doReset();
 					}
 				});
+
+				// remove all bubs in the cluster
+				bubbleGrid.removeBubbles(cluster);
 			}
 
 			doReset();
 		});
+
+		// game states
+		bubbleGrid.on('removeBubbleSpecial', function () {
+			self.endGame(Enums.GameStates.WIN);
+		});
+
+		bubbleGrid.on('addBubbleFailed', function () {
+			// TODO: fix rogue lose state from rogue failed-to-add bubbles
+			/*self.endGame(Enums.GameStates.LOSE);*/
+		});
 	};
 
 	this.startGame = function () {
-		// init bubbles
-		// DEBUG: example level building
-		// TODO: use 2d array of layouts
-		this.bubbleGrid.fillRows(1,4);
+		var bubbleGrid = this.bubbleGrid;
+		var layout = this._levelLayouts[this.currentLevel];
+		if (!layout) {
+			// no more levels, won the game!
+			this.endGame(Enums.GameStates.GAME_OVER_WIN);
+		}
+
+		// pass in 2d array of layouts to init bubble
+		this.reset(function () {
+			// choose a random special "win" bubble within the first 3 rows (A-C)
+			bubbleGrid.once('addedBubbles', function () {
+				var randBub;
+				while (!randBub) {
+					var letterIds = ['A', 'B', 'C'];
+					var randBubId = letterIds[Math.floor(Math.random() * (letterIds.length))] +
+						Math.floor(Math.random() * (bubbleGrid.hexesPerRow) + 1);
+					randBub = bubbleGrid.bubbles[randBubId];
+				}
+
+				randBub.makeSpecial();
+			});
+
+			bubbleGrid.fillRows(layout[0], layout[1]); // rows from, to
+		});
+	};
+
+	this.endGame = function (state) {
+		this.emit('endGame');
+
+		switch (state) {
+			case Enums.GameStates.WIN:
+				// win level, dispaly feedback, tap to continue
+				this.currentLevel += 1;
+				this.startGame();
+				break;
+
+			case Enums.GameStates.LOSE:
+				this.once('InputSelect', this.startGame);
+				break;
+		}
+	};
+
+	this.reset = function (cb) {
+		// wait for last launch to complete before moving on
+		if (this._isLaunching) {
+			return this.once('resetLaunch', function () {
+				this.reset(cb);
+			});
+		}
+
+		this.bubbleGrid.once('removedBubbles', function () {
+			if (cb) {
+				cb();
+			}
+		});
+		this.bubbleGrid.sweep();
 	};
 });

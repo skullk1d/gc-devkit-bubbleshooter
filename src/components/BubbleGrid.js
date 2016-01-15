@@ -34,6 +34,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		this.bubbles = {};
 		this._addedBubs = [];
 		this._removedBubs = [];
+		this.hexesPerRow = 0;
 
 		// setup static hexagon properties
 		var hexWidth = HEX_WIDTH; // scale for native canvas
@@ -84,15 +85,21 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		// use row-col coords to get the proper hex ids to populate
 		// note: need to do this because rows based on letter, not number
 		// note: odd rows have hexes with odd number ids, same as even
+		var bubsToAdd = [];
+
 		var i, j;
 		for (i = rowFrom; i <= rowTo; i += 1) {
 			var colStart = i % 2 === 0 ? 0 : 1; // even or odd (raw cols/rows are zero indexed)
 			for (j = colStart; j < hexesPerWidth; j += 2) { // every other
 				var hexId = this._hexGrid.GetHexId(i, j); // row, col
 				var curHex = this._hexGrid.GetHexById(hexId);
-				this._addBubble({ id: curHex.Id });
+				bubsToAdd.push(curHex.Id);
 			}
 		}
+
+		this.addBubbles(bubsToAdd);
+
+		this.hexesPerRow = hexesPerWidth / 2;
 	};
 
 	this._addBubble = function (params) {
@@ -102,6 +109,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 		// no hex, or hex already has bubble
 		if (!hex || this.bubbles[hex.Id]) {
+			this.emit('addBubbleFailed');
 			return console.warn('could not add bubble to hex grid', params);
 		}
 
@@ -132,6 +140,11 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		function doRemove(bubble) {
 			bubble.toRemove = true; // protect from double processing
 			delete self.bubbles[bubble.id];
+
+			// notify for special bubbles
+			if (bubble.isSpecial) {
+				self.emit('removeBubbleSpecial', bubble);
+			}
 
 			self._animateRemove(bubble, function () {
 				 // safe to remove after animation
@@ -166,7 +179,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 			var item = arr[i];
 			if (item instanceof Bubble) { // bubble
 				params = { bubble: item };
-			} else if (item instanceof String) { // hex id
+			} else if (typeof item === 'string') { // hex id
 				params = { id: item };
 			} else { // point
 				params = { point: item };
@@ -190,7 +203,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 			var item = arr[i];
 			if (item instanceof Bubble) { // bubble
 				params = { bubble: item };
-			} else if (item instanceof String) { // hex or bubble id
+			} else if (typeof item === 'string') { // hex or bubble id
 				params = { id: item };
 			} else { // point
 				params = { point: item };
@@ -335,9 +348,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 	};
 
 	this.sweep = function () {
-		for (var id in this.bubbles) {
-			this._removeBubble({ bubble: this.bubbles[id] });
-		}
+		this.removeBubbles(Object.keys(this.bubbles));
 	};
 
 	this.draw = function (ctx) {

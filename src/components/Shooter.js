@@ -24,7 +24,7 @@ import src.enums as Enums;
 // const
 const BUBBLE_SPEED = 0.4;
 
-var skin = Enums.SKINS.TOON;
+var skin = Enums.Skins.TOON;
 var path = 'resources/images/' + skin;
 var arrImg = new Image({url: path + '/arrow.png'});
 
