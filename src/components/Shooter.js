@@ -11,14 +11,22 @@ import math.geom.Circle as Circle;
 import math.geom.intersect as intersect;
 import math.geom.Vec2D as Vec2D;
 
-import ui.ImageView;
+import ui.resource.Image as Image;
+
+import ui.ImageView as ImageView;
 import ui.View;
 
 import src.components.BubbleGrid as BubbleGrid;
 import src.components.Bubble as Bubble;
 
+import src.enums as Enums;
+
 // const
 const BUBBLE_SPEED = 0.4;
+
+var skin = Enums.SKINS.TOON;
+var path = 'resources/images/' + skin;
+var arrImg = new Image({url: path + '/arrow.png'});
 
 // class
 var Shooter = Class(ui.View, function (supr) {
@@ -46,16 +54,17 @@ var Shooter = Class(ui.View, function (supr) {
 
 	this.build = function () {
 		// target arrow w anchor for rotation
-		var arrowHeight = 32;
-		this.targetArrow = new ui.View({
+		var arrWidth = arrImg.getWidth() / 4;
+		var arrHeight = arrImg.getHeight() / 4;
+		this.targetArrow = new ImageView({
 			superview: this,
-			width: 3,
-			height: arrowHeight,
-			x: this._centerP.x,
-			y: this._centerP.y - arrowHeight,
-			anchorX: 2,
-			anchorY: arrowHeight,
-			backgroundColor: 'red'
+			image: arrImg,
+			width: arrWidth,
+			height: arrHeight,
+			x: this._centerP.x - (arrWidth / 2),
+			y: this._centerP.y - arrHeight,
+			anchorX: arrWidth / 2,
+			anchorY: arrHeight,
 		});
 
 		// bubble we shoot at grid
@@ -67,12 +76,13 @@ var Shooter = Class(ui.View, function (supr) {
 		});
 
 		// bubble next in line
+		var arrRect = this.targetArrow.getBoundingShape();
 		this.nextBubble = new Bubble({
 			superview: this,
 			width: bubWidth,
 			height: bubWidth,
-			x: this.targetArrow.style.x - (bubWidth * 2),
-			y: this.targetArrow.style.y + (bubWidth / 2)
+			x: arrRect.getCenter().x - (bubWidth * 2),
+			y: arrRect.getCenter().y + (bubWidth / 2)
 		});
 
 		this.setupEvents();

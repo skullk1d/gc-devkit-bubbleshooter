@@ -21,8 +21,9 @@ exports = Class(GC.Application, function () {
 		var titlescreen = new TitleScreen();
 		var gamescreen = new GameScreen();
 
-		this.view.style.backgroundColor = '#3DC1F2';
+		var sound = soundcontroller.getSound();
 
+		this.view.style.backgroundColor = '#3DC1F2';
 
 		// Create a stackview of size 320x480, then scale it to fit horizontally
 		// Add a new StackView to the root of the scene graph
@@ -39,14 +40,12 @@ exports = Class(GC.Application, function () {
 		});
 
 		function startApp() {
-		 	/*sound.play('levelmusic');*/
+		 	sound.play('level');
 		 	rootView.push(gamescreen);
 			gamescreen.emit('app:start');
 		}
 
 		startApp(); // DEBUG: quickstart // rootView.push(titlescreen);
-
-		var sound = soundcontroller.getSound();
 
 		/* Listen for an event dispatched by the title screen when
 		 * the start button has been pressed. Hide the title screen,
@@ -59,7 +58,7 @@ exports = Class(GC.Application, function () {
 		 * show the title screen so that the user may play the game again.
 		 */
 		gamescreen.on('gamescreen:end', function () {
-			/*sound.stop('levelmusic');*/
+			sound.stop('level');
 			rootView.pop();
 		});
 	};

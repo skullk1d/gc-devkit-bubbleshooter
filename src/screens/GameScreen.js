@@ -11,6 +11,8 @@ import ui.View;
 import src.components.BubbleGrid as BubbleGrid;
 import src.components.Shooter as Shooter;
 
+import src.enums as Enums;
+
 /*
  * The game screen is a singleton view that consists of
  * a scoreboard, bubble grid, player's cannon, and bubble queue.
@@ -21,7 +23,9 @@ import src.components.Shooter as Shooter;
  const VIEW_HEIGHT = 480;
  const MATCH_BENCH = 3; // match 3 cluster
 
- var bgLvl1 = new Image({ url: 'resources/images/bgLvl1.png' });
+var skin = Enums.SKINS.TOON;
+var path = 'resources/images/' + skin;
+var bgLvl1 = new Image({ url: path + '/bgLvl1.png' });
 
 /* The GameScreen view is a child of the main application.
  * By adding the scoreboard and the grid as it's children,
@@ -73,7 +77,8 @@ exports = Class(ui.View, function (supr) {
 			width: VIEW_WIDTH - (bubbleGridOffsetX * 2),
 			height: VIEW_HEIGHT - shooterHeight - bubbleGridOffsetY,
 			x: bubbleGridOffsetX,
-			y: bubbleGridOffsetY // based on bg art
+			y: bubbleGridOffsetY, // based on bg art
+			zIndex: 1
 		});
 
 		// shooter
@@ -83,7 +88,8 @@ exports = Class(ui.View, function (supr) {
 			y: VIEW_HEIGHT - shooterHeight,
 			width: VIEW_WIDTH,
 			height: shooterHeight,
-			bubbleGrid: this.bubbleGrid // register
+			bubbleGrid: this.bubbleGrid, // register
+			zIndex: 0 // if arrow or cannon should be under or over next bubble
 		});
 
 		// animations

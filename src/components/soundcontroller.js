@@ -9,7 +9,7 @@ exports.getSound = function () {
     exports.sound = new AudioManager({
       path: 'resources/sounds',
       files: {
-        levelmusic: {
+        level: {
           path: 'music',
           volume: 0.5,
           background: true,

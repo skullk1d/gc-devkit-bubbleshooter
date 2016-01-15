@@ -2,16 +2,16 @@ import ui.ImageView as ImageView;
 import ui.resource.Image as Image;
 import ui.View;
 
-/*
-Provides circular entity visually represented by a circular image
-*/
+import src.enums as Enums;
 
+var skin = Enums.SKINS.TOON;
+var path = 'resources/images/' + skin;
 var bubImgs = [
-	new Image({url: "resources/images/bubA.png"}),
-	new Image({url: "resources/images/bubB.png"}),
-	new Image({url: "resources/images/bubC.png"}),
-	new Image({url: "resources/images/bubD.png"}),
-	new Image({url: "resources/images/bubE.png"})
+	new Image({url: path + '/bubA.png'}),
+	new Image({url: path + '/bubB.png'}),
+	new Image({url: path + '/bubC.png'}),
+	new Image({url: path + '/bubD.png'}),
+	new Image({url: path + '/bubE.png'})
 ];
 
 /* Represented by collision circle */
