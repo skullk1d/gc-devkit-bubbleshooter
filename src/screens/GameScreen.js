@@ -24,7 +24,6 @@ import src.enums as Enums;
  const VIEW_WIDTH = 320;
  const VIEW_HEIGHT = 480;
  const MATCH_BENCH = 3; // match 3 cluster
- const LEVEL_MULTIPLIER = 2;
  const BUBBLE_POINTS = 50;
 
 var skin = Enums.Skins.TOON;
@@ -58,7 +57,9 @@ exports = Class(ui.View, function (supr) {
 		this._levelLayouts = [
 			[1,4],
 			[1,6],
-			[1,8]
+			[1,8],
+			[1,10],
+			[1,12]
 		]; // TODO: staggar fill rows and link at least one bubble between
 		this.currentLevel = 0;
 		this._isLaunching = false;
@@ -230,7 +231,9 @@ exports = Class(ui.View, function (supr) {
 
 	this.startGame = function () {
 		var bubbleGrid = this.bubbleGrid;
-		var layout = this._levelLayouts[this.currentLevel];
+
+		// DEBUG: infinite mode, when run out repeat final layout but increase level + multiplier
+		var layout = this._levelLayouts[Math.min(this.currentLevel, this._levelLayouts.length - 1)];
 		if (!layout) {
 			// no more levels, won the game!
 			this.endGame(Enums.GameStates.GAME_OVER_WIN);
@@ -288,7 +291,7 @@ exports = Class(ui.View, function (supr) {
 	};
 
 	this.addScore = function (numBubbles) {
-		var points = numBubbles * BUBBLE_POINTS + this.currentLevel * LEVEL_MULTIPLIER;
+		var points = numBubbles * BUBBLE_POINTS * (this.currentLevel + 1); // lvl multiplier
 		this.score += points;
 		this.scoreboard.setText(this.score.toString());
 	};
