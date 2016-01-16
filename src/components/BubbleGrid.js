@@ -33,9 +33,10 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		// shouldn't need to modify underlying hex grid once created, only update bubbles after
 		this.bubbles = {};
 		this.specialBubbles = {}; // objective bubbles etc
-		this._addedBubs = [];
-		this._removedBubs = [];
-		this.hexesPerRow = 0;
+		this.hexesPerLetterRow = 0; // letter-based Ids, flush
+		this.hexesPerLetterCol = 0;
+		this.hexesPerRow = 0; // number based row/cols, staggered
+		this.hexesPerCol = 0;
 
 		// setup static hexagon properties
 		var hexWidth = HEX_WIDTH; // scale for native canvas
@@ -80,8 +81,9 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		// visual coords are 1-indexed but grid manages with zero-index
 		rowFrom -= 1;
 
-		// 4 stacked, connected offset hexes leave 20% free space, thus:
-		var hexesPerWidth = Math.round(this._gridWidth / (HEX_WIDTH * 0.8));
+		// 4 stacked, connected offset hexes leave 20% free space for rows, 50% for cols thus:
+		this.hexesPerRow = Math.round(this._gridWidth / (HEX_WIDTH * 0.8));
+		this.hexesPerCol = Math.floor(this._gridHeight / (HEX_WIDTH * 0.5));
 
 		// use row-col coords to get the proper hex ids to populate
 		// note: need to do this because rows based on letter, not number
@@ -91,7 +93,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		var i, j;
 		for (i = rowFrom; i <= rowTo; i += 1) {
 			var colStart = i % 2 === 0 ? 0 : 1; // even or odd (raw cols/rows are zero indexed)
-			for (j = colStart; j < hexesPerWidth; j += 2) { // every other
+			for (j = colStart; j < this.hexesPerRow; j += 2) { // every other
 				var hexId = this._hexGrid.GetHexId(i, j); // row, col
 				var curHex = this._hexGrid.GetHexById(hexId);
 				bubsToAdd.push(curHex.Id);
@@ -100,7 +102,8 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 		this.addBubbles(bubsToAdd);
 
-		this.hexesPerRow = hexesPerWidth / 2;
+		this.hexesPerLetterRow = Math.floor(this.hexesPerRow / 2);
+		this.hexesPerLetterCol = Math.round(this.hexesPerCol / 2);
 	};
 
 	this._addBubble = function (params) {
@@ -118,6 +121,8 @@ var BubbleGrid = Class(ui.View, function (supr) {
 			id: hex.Id,
 			x: hex.x,
 			y: hex.y,
+			coOrdX: hex.PathCoOrdX,
+			coOrdY: hex.PathCoOrdY,
 			width: HEX_WIDTH,
 			height: HEX_WIDTH,
 			bubType: params.bubType
@@ -153,10 +158,14 @@ var BubbleGrid = Class(ui.View, function (supr) {
 				self.emit('removeBubbleSpecial', bubble);
 			}
 
-			self._animateRemove(bubble, function () {
-				 // safe to remove after animation
-				delete self.removeSubview[bubble.id];
-			});
+			if (params.shouldAnimate) {
+				self._animateRemove(bubble, function () {
+					 // safe to remove after animation
+					self.removeSubview(bubble);
+				});
+			} else {
+				self.removeSubview(bubble);
+			}
 		}
 
 		var bubble = params.bubble || this.bubbles[params.id];
@@ -202,7 +211,9 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		return addedBubbles;
 	};
 
-	this.removeBubbles = function (bubblesIdsOrPoints) {
+	this.removeBubbles = function (bubblesIdsOrPoints, shouldAnimate) {
+		shouldAnimate = shouldAnimate === undefined ? true : shouldAnimate;
+
 		// pass in an array of [ point ] or [ bubble ] or [ id ]
 		var arr = bubblesIdsOrPoints;
 		var i, params;
@@ -216,6 +227,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 				params = { point: item };
 			}
 
+			params.shouldAnimate = shouldAnimate;
 			this._removeBubble(params);
 		}
 
@@ -223,6 +235,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 	};
 
 	this.getBubbleAt = function (point) {
+		// point or coOrd
 		var hex = this._getHex({ point: point });
 		if (!hex) {
 			return console.warn('Requested point outside of hex grid');
@@ -340,7 +353,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 				var clusBub = cluster[i];
 
 				// cluster contains at least one top-row bubble
-				if (clusBub.style.y <= 0) {
+				if (clusBub.style.y <= HEX_WIDTH / 2) {
 					isFloating = false;
 					break;
 				}
@@ -375,21 +388,85 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		this.draw(ctx);
 	};
 
-	this.makeBubbleSpecial = function (bubble) {
-		bubble.makeSpecial();
-		this.specialBubbles[bubble.id] = bubble;
+	this.makeBubbleSpecial = function (bubble, shouldSpecial) {
+		shouldSpecial = shouldSpecial === undefined ? true : shouldSpecial;
+		bubble.makeSpecial(shouldSpecial);
+		if (shouldSpecial) {
+			this.specialBubbles[bubble.id] = bubble;
+		} else {
+			delete this.specialBubbles[bubble.id];
+		}
+	};
+
+	this.pushNewRow = function () {
+		// push row from top, a la survival mode
+		var bubsToRemove = []; // top row
+
+		// starting from bottom row, take bubble type of hex above and reassign to hex below it
+		var i, j; // col, row
+		for (i = this.hexesPerCol - 1; i >= 0; i -= 1) {
+			for (j = this.hexesPerRow - 1; j >= 0; j -= 1) {
+				// shift down
+				var hexId = this._hexGrid.GetHexId(i, j);
+				var bubble = this.bubbles[hexId];
+
+				hexId = this._hexGrid.GetHexId(i + 1 + 1, j); // every other letter per staggered row
+				if (!this._getHex({ id: hexId })) {
+					// on bottom row
+					continue;
+				}
+
+				// match the below bubble or remove it, depending on above bubble
+				var belowBubble = this.bubbles[hexId];
+				if (bubble) {
+					belowBubble = belowBubble || this.addBubbles([ hexId ])[0];
+					belowBubble.setBubType(bubble.bubType);
+					if (bubble.isSpecial) {
+						this.makeBubbleSpecial(bubble, false);
+						this.makeBubbleSpecial(belowBubble);
+					}
+				} else if (belowBubble) {
+					this.removeBubbles([ belowBubble ]);
+				}
+
+				// reached top connected row (staggered rows A & B), remove
+				if ((i <= 1) && bubble) {
+					bubsToRemove.push(bubble);
+				}
+			}
+		}
+
+		// fill first row
+		this.once('removedBubbles', function () {
+			this.fillRows(1);
+		});
+		this.removeBubbles(bubsToRemove, false);
 	};
 
 	// private
 
 	this._getHex = function (params) {
 		params = params || {};
+
+		var hex;
+
+		// can retrieve by point (xy or coOrdXY) or id
 		if (params.point) {
-			params.point = { X: params.point.x, Y: params.point.y }; // adapted from HT class
+			var point = params.point;
+			// point or coOrd
+			if (point.x) {
+				point = { X: point.x, Y: point.y }; // adapted from HT class
+				hex = this._hexGrid.GetNearestHex(point);
+			} else if (point.coOrdX) {
+				hex = this._hexGrid.GetHexByCoOrd(point.coOrdX, point.coOrdY);
+			}
+		} else if (params.id) {
+			hex = this._hexGrid.GetHexById(params.id);
 		}
 
-		// can retrieve by point or id
-		var hex = this._hexGrid.GetHexById(params.id) || this._hexGrid.GetNearestHex(params.point);
+		/*if (!hex) {
+			console.warn('Could not retrieve hex');
+		}*/
 
 		return hex;
 	};

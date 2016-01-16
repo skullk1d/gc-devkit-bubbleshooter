@@ -172,8 +172,8 @@ var Shooter = Class(ui.View, function (supr) {
 		var bubWidth = this.activeBubble.style.width;
 		var bubGrid = this._bubbleGrid;
 		this.activeBubble.style.update({
-			x: bubGrid.style.x + (bubGrid.style.width / 2) - (bubWidth / 2) - bubGrid.style.x,
-			y: bubGrid.style.y + (bubGrid.style.height / 2) - (bubWidth / 2) + bubWidth,
+			x: (bubGrid.style.width / 2) - (bubWidth / 2),
+			y: bubGrid.style.height
 		});
 
 		// prepare next bubbles

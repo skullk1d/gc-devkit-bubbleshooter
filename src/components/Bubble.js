@@ -28,6 +28,8 @@ exports = Class(ui.View, function (supr) {
 		this.id = opts.id;
 		this.bubType = opts.bubType;
 		this.isSpecial = opts.isSpecial;
+		this.coOrdX = opts.coOrdX;
+		this.coOrdY = opts.coOrdY;
 
 		supr(this, 'init', [opts]);
 
