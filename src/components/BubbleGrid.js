@@ -32,6 +32,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 	this.build = function () {
 		// shouldn't need to modify underlying hex grid once created, only update bubbles after
 		this.bubbles = {};
+		this.specialBubbles = {}; // objective bubbles etc
 		this._addedBubs = [];
 		this._removedBubs = [];
 		this.hexesPerRow = 0;
@@ -126,6 +127,11 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		this.bubbles[hex.Id] = bubble;
 		this.addSubview(bubble);
 
+		// objective bubble?
+		if (params.isSpecial) {
+			this.makeBubbleSpecial(bubble);
+		}
+
 		this._animateAdd(bubble);
 
 		return bubble;
@@ -143,12 +149,13 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 			// notify for special bubbles
 			if (bubble.isSpecial) {
+				delete self.specialBubbles[bubble.id];
 				self.emit('removeBubbleSpecial', bubble);
 			}
 
 			self._animateRemove(bubble, function () {
 				 // safe to remove after animation
-				self.removeSubview(bubble);
+				delete self.removeSubview[bubble.id];
 			});
 		}
 
@@ -366,6 +373,11 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 	this.render = function (ctx) {
 		this.draw(ctx);
+	};
+
+	this.makeBubbleSpecial = function (bubble) {
+		bubble.makeSpecial();
+		this.specialBubbles[bubble.id] = bubble;
 	};
 
 	// private

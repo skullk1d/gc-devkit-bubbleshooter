@@ -114,12 +114,14 @@ exports = Class(ui.View, function (supr) {
 			width: newWidth,
 			height: newWidth,
 			x: newPos,
-			y: newPos
+			y: newPos,
+			opacity: 0.8
 		}, 750).then({
 			width: newWidth - widthOffset,
 			height: newWidth - widthOffset,
 			x: newPos + posOffset,
-			y: newPos + posOffset
+			y: newPos + posOffset,
+			opacity: 0.25
 		}, 750).then(self._animateSpecial.bind(self));
 	};
 });

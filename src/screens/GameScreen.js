@@ -220,7 +220,10 @@ exports = Class(ui.View, function (supr) {
 
 		// game states
 		bubbleGrid.on('removeBubbleSpecial', function () {
-			self.endGame(Enums.GameStates.WIN);
+			sound.play('cheer');
+			if (!Object.keys(bubbleGrid.specialBubbles).length) {
+				self.endGame(Enums.GameStates.WIN);
+			}
 		});
 
 		bubbleGrid.on('addBubbleFailed', function () {
@@ -230,6 +233,8 @@ exports = Class(ui.View, function (supr) {
 	};
 
 	this.startGame = function () {
+		var self = this;
+
 		var bubbleGrid = this.bubbleGrid;
 
 		// DEBUG: infinite mode, when run out repeat final layout but increase level + multiplier
@@ -243,17 +248,8 @@ exports = Class(ui.View, function (supr) {
 		this.reset(function () {
 			// choose a random special "win" bubble within the first 3 rows (A-C)
 			bubbleGrid.once('addedBubbles', function () {
-				var randBub;
-				while (!randBub) {
-					var letterIds = ['A', 'B', 'C'];
-					var randBubId = letterIds[Math.floor(Math.random() * (letterIds.length))] +
-						Math.floor(Math.random() * (bubbleGrid.hexesPerRow) + 1);
-					randBub = bubbleGrid.bubbles[randBubId];
-				}
-
-				randBub.makeSpecial();
+				self.createObjectiveBubbles(self.currentLevel);
 			});
-
 			bubbleGrid.fillRows(layout[0], layout[1]); // rows from, to
 		});
 	};
@@ -295,4 +291,22 @@ exports = Class(ui.View, function (supr) {
 		this.score += points;
 		this.scoreboard.setText(this.score.toString());
 	};
+
+	this.createObjectiveBubbles = function (level) {
+		// bubbles to capture to win level
+		var bubbleGrid = this.bubbleGrid;
+
+		// create obejctive bubbles to get per level
+		for (var i = 0; i <= level; i += 1) {
+			var randBub;
+			while (!randBub || randBub.isSpecial) {
+				var letterIds = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+				var randBubId = letterIds[Math.floor(Math.random() * (letterIds.length))] +
+					Math.floor(Math.random() * (bubbleGrid.hexesPerRow) + 1);
+				randBub = bubbleGrid.bubbles[randBubId];
+			}
+
+			bubbleGrid.makeBubbleSpecial(randBub);
+		}
+	}
 });

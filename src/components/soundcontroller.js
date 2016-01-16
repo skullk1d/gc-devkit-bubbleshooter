@@ -26,6 +26,10 @@ exports.getSound = function () {
 				success: {
 					path: 'effect',
 					background: false
+				},
+				cheer: {
+					path: 'effect',
+					background: false
 				}
 			}
 		});
