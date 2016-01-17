@@ -94,7 +94,7 @@ var Shooter = Class(ui.View, function (supr) {
 	};
 
 	this.aimAt = function (point) {
-		if (this.shouldLaunch) {
+		if (this.isLaunching) {
 			return;
 		}
 
@@ -118,7 +118,7 @@ var Shooter = Class(ui.View, function (supr) {
 	};
 
 	this.tick = function (dt) { // ms
-		if (!this.shouldLaunch) {
+		if (!this.isLaunching) {
 			return;
 		}
 
@@ -147,11 +147,12 @@ var Shooter = Class(ui.View, function (supr) {
 		}
 
 		// collisions with other bubbles
+		var gridBub;
 		if (!didCollide) {
 			var bubRect = bubble.getBoundingShape();
 			var bubbles = this._bubbleGrid.bubbles; // TODO? reduce class interdependecy
 			for (var b in bubbles) {
-				var gridBub = bubbles[b];
+				gridBub = bubbles[b];
 				if (gridBub.toRemove) { // already being removed
 					continue;
 				}
@@ -180,7 +181,11 @@ var Shooter = Class(ui.View, function (supr) {
 		this.activeBubble.setBubType(this.nextBubble.bubType); // have next bubtype ready in queue
 		this.nextBubble.setBubType(); // random
 
-		this.shouldLaunch = false;
+		this.isLaunching = false;
+	};
+
+	this.launch = function () {
+		this.isLaunching = true;
 	};
 });
 

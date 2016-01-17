@@ -26,9 +26,9 @@ import src.enums as Enums;
  const VIEW_HEIGHT = 480;
  const MATCH_BENCH = 3; // match 3 cluster
  const BUBBLE_POINTS = 50;
- const TURN_BENCH = 6;
  const FONT_FAMILY = 'Riffic';
  const MESSAGE_POS_Y = 60;
+ const TURN_BENCH = 6;
 
 var skin = Enums.Skins.TOON;
 var path = 'resources/images/' + skin;
@@ -68,6 +68,7 @@ exports = Class(ui.View, function (supr) {
 		this.score = 0;
 		this.highScore = 0;
 		this._turnCount = 0;
+		this._turnBench = TURN_BENCH;
 
 		this.style.width = VIEW_WIDTH;
 		this.style.height = VIEW_HEIGHT;
@@ -88,7 +89,7 @@ exports = Class(ui.View, function (supr) {
 
 		// grid
 		this.bubbleGrid = new BubbleGrid({
-			debugMode: false, // draw visible hex grid
+			debugMode: true, // draw visible hex grid
 			superview: this,
 			width: VIEW_WIDTH - (bubbleGridOffsetX * 2),
 			height: VIEW_HEIGHT - bubbleGridOffsetY,
@@ -206,6 +207,7 @@ exports = Class(ui.View, function (supr) {
 
 		var sound = soundcontroller.getSound();
 		var bubbleGrid = this.bubbleGrid;
+		var shooter = this.shooter;
 
 		// capture touches for aim and launch
 		this.onInputStart = (evt, point) => {
@@ -215,10 +217,9 @@ exports = Class(ui.View, function (supr) {
 			this.shooter.aimAt(point);
 		};
 		this.onInputSelect = (evt, point) => {
-			this.shooter.aimAt(point);
-			if (!this._isLaunching) {
-				this.shooter.shouldLaunch = true;
-				this._isLaunching = true;
+			shooter.aimAt(point);
+			if (!shooter.isLaunching && this.gameState === Enums.GameStates.PLAY) {
+				shooter.launch();
 				sound.play('shoot');
 			}
 		};
@@ -227,15 +228,43 @@ exports = Class(ui.View, function (supr) {
 		this.shooter.on('collided', this.processCollision.bind(this));
 
 		// game states
-		bubbleGrid.on('addBubbleFailed', existingBubble => {
-			// if we collided with the cannon, then lose
+		function checkLose(existingBubble) {
+			// if we collided with the cannon's bubble, then lose
 			var hexBubRect = existingBubble.getBoundingShape();
 			var activeBubRect = this.shooter.activeBubble.getBoundingShape();
 			if (Shooter.Static.circAndCirc(hexBubRect, activeBubRect)) {
 				this.endGame(Enums.GameStates.LOSE);
-			}
+			} else if (existingBubble) {
+				// TODO: find real reason for rogue failures in the middle of the grid
+				// find next available hex in cluster from bottom 3 hexes in cluster
+				var adjacentIds = bubbleGrid.getAdjacentsAt(existingBubble.id).slice(3,5);
 
-			// TODO: fix occasional rogue failed-to-add bubbles
+				// based on orientation from cannon, check CW or CCW
+				if (activeBubRect.x < hexBubRect) {
+					adjacentIds.reverse();
+				}
+
+				var newBub;
+				for (var i = 0; i < adjacentIds.length; i += 1) {
+					var adjId = adjacentIds[i];
+					var adjBub = bubbleGrid.bubbles[adjId];
+					if (!adjBub) {
+						// use the lower-most available free hex
+						newBub = bubbleGrid.addBubbles([ adjId ]);
+						break;
+					}
+				}
+			}
+		}
+
+		bubbleGrid.on('addBubbleFailed', existingBubble => {
+			// wait til done with collision
+			if (shooter.isLaunching) {
+				return this.once('processCollision', () => {
+					checkLose.call(this, existingBubble);
+				});
+			}
+			checkLose.call(this, existingBubble);
 		});
 		bubbleGrid.on('removeBubbleSpecial', () => {
 			// don't count objective bubbles if resetting the game
@@ -252,47 +281,29 @@ exports = Class(ui.View, function (supr) {
 	this.startGame = function () {
 		var bubbleGrid = this.bubbleGrid;
 
-		// DEBUG: infinite mode, when run out repeat final layout but increase level + multiplier
+		// infinite mode, when run out repeat final layout but increase level + multiplier
 		var layout = this._levelLayouts[Math.min(this.currentLevel, this._levelLayouts.length - 1)];
 		if (!layout) {
-			// no more levels, won the game!
-			this.endGame(Enums.GameStates.GAME_OVER_WIN);
+			/*this.endGame(Enums.GameStates.GAME_OVER_WIN);*/ // comment out for infinite
+			// no more layouts, increase difficulty via turn benchmark for adding rows
+
+			this._turnBench = Math.Max(1, this._turnBench - 1);
 		}
 
 		/*this.message.setText('Go!');*/
 
-		// pass in 2d array of layouts to init bubble
-		this.reset(() => {
-			// bubbles to capture to win level
-			bubbleGrid.once('addedBubbles', () => {
-				this.createObjectiveBubbles(this.currentLevel);
-			});
-			bubbleGrid.fillRows(layout[0], layout[1]); // rows from, to
-
-			// message
-			this.message.setText(`Level ${this.currentLevel + 1}`);
-			this._animateMessage('stageLeft');
-
-			this._isLaunching = false; // may now start shooting
-
-			this.gameState = Enums.GameStates.PLAY;
-
-			// DEBUG
-			/*setInterval(bubbleGrid.pushNewRow.bind(bubbleGrid), 4000);*/
-		});
+		// pass in 2d array of layouts to init bubbles
+		this.buildLevel(layout);
 	};
 
 	this.endGame = function (state) {
 		if (this.gameState === state) {
 			return;
 		}
-
-		this.gameState = state;
 		this.emit('endGame', state);
 
+		this.gameState = state;
 		this._turnCount = 0;
-
-		this._isLaunching = true; // stop from shooting bubbles
 
 		var sound = soundcontroller.getSound();
 
@@ -329,13 +340,10 @@ exports = Class(ui.View, function (supr) {
 									visible: false
 								});
 
-								// reset stats
-								this.currentLevel = 0;
-								this.score = 0;
-								this.scoreboard.setText('0');
+								this.reset();
+								this.startGame();
 
 								sound.play('level');
-								this.startGame();
 							});
 						});
 					}, 600);
@@ -345,22 +353,36 @@ exports = Class(ui.View, function (supr) {
 		}
 	};
 
-	this.reset = function (cb) {
+	this.buildLevel = function (layout) {
 		// wait for last launch to complete before moving on
-		if (this._isLaunching) {
+		if (this.shooter.isLaunching) {
 			return this.once('processCollision', () => {
-				this.reset(cb);
+				this.buildLevel(layout);
 			});
 		}
 
-		this.bubbleGrid.once('removedBubbles', () => {
-			if (cb) {
-				cb();
-			}
-		});
+		var bubbleGrid = this.bubbleGrid;
 
-		// clear grid with no animation if first level
-		this.bubbleGrid.sweep(this.currentLevel > 0);
+		function doBuild() {
+			// bubbles to capture to win level
+			bubbleGrid.once('addedBubbles', () => {
+				this.createObjectiveBubbles(this.currentLevel + 1);
+			});
+			bubbleGrid.fillRows(layout[0], layout[1]); // rows from, to
+
+			// message
+			this.message.setText(`Level ${this.currentLevel + 1}`);
+			this._animateMessage('stageLeft');
+
+			this.gameState = Enums.GameStates.PLAY;
+
+			// DEBUG
+			/*setInterval(bubbleGrid.pushNewRow.bind(bubbleGrid), 4000);*/
+		}
+
+		// clear grid (with no animation if first level)
+		bubbleGrid.once('removedBubbles', doBuild.bind(this));
+		bubbleGrid.sweep(this.currentLevel > 0);
 	};
 
 	this.addScore = function (numBubbles) {
@@ -370,10 +392,10 @@ exports = Class(ui.View, function (supr) {
 		this.score += points;
 		setTimeout(() => {
 			var displayedScore = parseInt(this.scoreboard.getText());
-			if (displayedScore === this.score) {
+			if (displayedScore >= this.score) {
 				return;
 			}
-			this.scoreboard.setText(displayedScore + 1);
+			this.scoreboard.setText(displayedScore + 10);
 			this.addScore();
 		}, 6);
 	};
@@ -383,7 +405,7 @@ exports = Class(ui.View, function (supr) {
 		var bubbleGrid = this.bubbleGrid;
 
 		// create obejctive bubbles to get
-		for (var i = 0; i <= numBubbles; i += 1) {
+		for (var i = 0; i < numBubbles; i += 1) {
 			var randBub;
 			while (!randBub || randBub.isSpecial) {
 				var letterIds = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
@@ -410,18 +432,18 @@ exports = Class(ui.View, function (supr) {
 
 		// attach active bubble to nearest hex
 		function resetShooter() {
-			if (!self._isLaunching) {
+			if (!self.shooter.isLaunching) {
 				return;
 			}
-			self._isLaunching = false;
-			self.shooter.reset();
 
 			// launch over, next turn, reset turn cycle & push new bubbles
 			self._turnCount += 1;
-			self._turnCount = self._turnCount % TURN_BENCH ? self._turnCount : 0;
+			self._turnCount = self._turnCount % self._turnBench ? self._turnCount : 0;
 			if (!self._turnCount) {
 				bubbleGrid.pushNewRow(); // survival element
 			}
+
+			self.shooter.reset();
 
 			return self.emit('processCollision');
 		}
@@ -462,6 +484,17 @@ exports = Class(ui.View, function (supr) {
 		}
 
 		resetShooter();
+	};
+
+	this.reset = function () {
+		// reset stats
+		this.currentLevel = 0;
+		this._isLaunching = false;
+		this.score = 0;
+		this._turnCount = 0;
+		this._turnBench = TURN_BENCH;
+
+		this.scoreboard.setText('0');
 	};
 
 	this._animateMessage = function (ani) {

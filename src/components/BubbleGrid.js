@@ -115,7 +115,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		if (!hex || this.bubbles[hex.Id]) {
 			var existingBub = hex && this.bubbles[hex.Id];
 			this.emit('addBubbleFailed', existingBub);
-			return console.error('could not add bubble to hex grid');
+			return console.warn('could not add bubble to hex grid');
 		}
 
 		var bubble = new Bubble({
@@ -244,10 +244,11 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		return this.bubbles[hex.Id];
 	};
 
-	this.getAdjacentsAt = function (bubble) {
-		var neighbors = [];
+	this.getAdjacentsAt = function (hexId) {
+		// NOTE: bubble ids match hex ids
+		var neighborIds = [];
 
-		var bubHex = this._hexGrid.GetHexById(bubble.id);
+		var bubHex = this._hexGrid.GetHexById(hexId);
 		var hexCoord = {
 			coOrdX: bubHex.PathCoOrdX,
 			coOrdY: bubHex.PathCoOrdY
@@ -257,12 +258,12 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		// pathCoOrd is coOrdY-coOrdX hex coords
 		// hexes exist in clusters of 7, process clockwise, from topleft neighbor
 		var transforms = [
-			{ coOrdX: -1, coOrdY: -1 },
-			{ coOrdX: 0, coOrdY: -1 },
-			{ coOrdX: 1, coOrdY: 0 },
-			{ coOrdX: 1, coOrdY: 1 },
-			{ coOrdX: 0, coOrdY: 1 },
-			{ coOrdX: -1, coOrdY: 0 },
+			{ coOrdX: -1, coOrdY: -1 }, // top left
+			{ coOrdX: 0, coOrdY: -1 }, // top
+			{ coOrdX: 1, coOrdY: 0 }, // top right
+			{ coOrdX: 1, coOrdY: 1 }, // bot right
+			{ coOrdX: 0, coOrdY: 1 }, // bot
+			{ coOrdX: -1, coOrdY: 0 } // bot left
 		];
 
 		for (var i = 0; i < transforms.length; i += 1) {
@@ -278,21 +279,27 @@ var BubbleGrid = Class(ui.View, function (supr) {
 				continue;
 			}
 
-			var neighborBub = this.bubbles[neighborHex.Id];
-
-			if (neighborBub) {
-				neighbors.push(neighborBub);
-			}
+			neighborIds.push(neighborHex.Id); // results are CW from top left
 		}
 
-		return neighbors;
+		return neighborIds;
 	};
 
 	this.getClusterAt = function (bubble, matchType, reset) {
 		// starting at a bubble, return all bubbles found in a cluster (Match-3)
 		var activeType = bubble.bubType;
-		var processQueue = [ bubble ].concat(this.getAdjacentsAt(bubble)); // start with self & neighbors
+		var processQueue = [ bubble ]; // start with self & neighbors
+		var adjacentIds = this.getAdjacentsAt(bubble.id);
 		var cluster = []; // results
+
+		var i, adjBub;
+
+		for (i = 0; i < adjacentIds.length; i += 1) {
+			adjBub = this.bubbles[adjacentIds[i]];
+			if (adjBub) {
+				processQueue.push(adjBub);
+			}
+		}
 
 		if (reset) {
 			this._resetFlags(); // reset algo queue
@@ -318,7 +325,15 @@ var BubbleGrid = Class(ui.View, function (supr) {
 				continue;
 			}
 
-			processQueue = processQueue.concat(this.getAdjacentsAt(curBub));
+			adjacentIds = this.getAdjacentsAt(curBub.id);
+
+			for (i = 0; i < adjacentIds.length; i += 1) {
+				adjBub = this.bubbles[adjacentIds[i]];
+				if (adjBub) {
+					processQueue.push(adjBub);
+				}
+			}
+
 			cluster.push(curBub);
 		}
 
