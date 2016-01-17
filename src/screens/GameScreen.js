@@ -89,7 +89,7 @@ exports = Class(ui.View, function (supr) {
 
 		// grid
 		this.bubbleGrid = new BubbleGrid({
-			debugMode: true, // draw visible hex grid
+			debugMode: false, // draw visible hex grid
 			superview: this,
 			width: VIEW_WIDTH - (bubbleGridOffsetX * 2),
 			height: VIEW_HEIGHT - bubbleGridOffsetY,
