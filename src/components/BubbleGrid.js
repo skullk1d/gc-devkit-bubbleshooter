@@ -113,8 +113,9 @@ var BubbleGrid = Class(ui.View, function (supr) {
 
 		// no hex, or hex already has bubble
 		if (!hex || this.bubbles[hex.Id]) {
-			this.emit('addBubbleFailed');
-			return console.warn('could not add bubble to hex grid', params);
+			var existingBub = hex && this.bubbles[hex.Id];
+			this.emit('addBubbleFailed', existingBub);
+			return console.error('could not add bubble to hex grid');
 		}
 
 		var bubble = new Bubble({
@@ -367,8 +368,8 @@ var BubbleGrid = Class(ui.View, function (supr) {
 		return floaters;
 	};
 
-	this.sweep = function () {
-		this.removeBubbles(Object.keys(this.bubbles));
+	this.sweep = function (shouldAnimate) {
+		this.removeBubbles(Object.keys(this.bubbles), shouldAnimate);
 	};
 
 	this.draw = function (ctx) {

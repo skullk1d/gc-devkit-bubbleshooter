@@ -1,5 +1,6 @@
 import animate;
 import device;
+
 import math.geom.Rect as Rect;
 import math.geom.intersect as intersect;
 import math.geom.Line as Line;
@@ -26,6 +27,7 @@ import src.enums as Enums;
  const MATCH_BENCH = 3; // match 3 cluster
  const BUBBLE_POINTS = 50;
  const TURN_BENCH = 6;
+ const FONT_FAMILY = 'Riffic';
 
 var skin = Enums.Skins.TOON;
 var path = 'resources/images/' + skin;
@@ -53,8 +55,6 @@ exports = Class(ui.View, function (supr) {
 	 * Layout the scoreboard and grid level design
 	 */
 	this.build = function () {
-		this.on('app:start', this.startGame.bind(this));
-
 		this._levelLayouts = [
 			[1,4],
 			[1,6],
@@ -65,6 +65,7 @@ exports = Class(ui.View, function (supr) {
 		this.currentLevel = 0;
 		this._isLaunching = false;
 		this.score = 0;
+		this.highScore = 0;
 		this._turnCount = 0;
 
 		this.style.width = VIEW_WIDTH;
@@ -89,7 +90,7 @@ exports = Class(ui.View, function (supr) {
 			debugMode: false, // draw visible hex grid
 			superview: this,
 			width: VIEW_WIDTH - (bubbleGridOffsetX * 2),
-			height: VIEW_HEIGHT - shooterHeight - bubbleGridOffsetY,
+			height: VIEW_HEIGHT - bubbleGridOffsetY,
 			x: bubbleGridOffsetX,
 			y: bubbleGridOffsetY, // based on bg art
 			zIndex: 1
@@ -107,7 +108,7 @@ exports = Class(ui.View, function (supr) {
 		});
 
 		// score
-		var scoreParams = {
+		var textViewParams = {
 			superview: this,
 			x: 0,
 			y: 28,
@@ -121,23 +122,80 @@ exports = Class(ui.View, function (supr) {
 			strokeWidth: '3',
 			strokeColor: '#403E3E',
 			color: '#fff',
-			text: '0'
+			text: '0',
+			fontFamily: FONT_FAMILY
 		};
-		this.scoreboard = new ui.TextView(scoreParams);
+		this.scoreboard = new ui.TextView(textViewParams);
 
-		scoreParams.y = scoreParams.y - scoreParams.height;
-		scoreParams.text = 'Score';
-		var scoreLabel = new ui.TextView(scoreParams);
+		textViewParams.y = textViewParams.y - textViewParams.height;
+		textViewParams.text = 'Score';
+		var scoreLabel = new ui.TextView(textViewParams);
+
+		// message
+		this.message = new ui.TextView({
+			superview: this,
+			x: VIEW_WIDTH, // offscreen
+			y: 36,
+			width: 200,
+			height: 36,
+			autoFontSize: true,
+			verticalAlign: 'middle',
+			horizontalAlign: 'center',
+			wrap: false,
+			strokeWidth: '3',
+			strokeColor: '#fff',
+			color: '#F9912E',
+			fontFamily: FONT_FAMILY,
+			shadowColor: '#3A96CF'
+		});
+
+		// overlay when lose
+		this._gridOverlay = new ui.View({
+			superview: this,
+			image: bgLvl1,
+			x: 0,
+			y: bubbleGridOffsetY,
+			width: VIEW_WIDTH,
+			height: VIEW_HEIGHT - 135,
+			visible: false,
+			opacity: 0,
+			backgroundColor: 'rgba(0,0,0,0.5)',
+			zIndex: 2
+		});
+
+		// high score (shown after game ends)
+		textViewParams = {
+			superview: this._gridOverlay,
+			x: 0,
+			y: this._gridOverlay.style.height / 2,
+			width: VIEW_WIDTH,
+			height: 28,
+			autoSize: false,
+			size: 24,
+			verticalAlign: 'middle',
+			horizontalAlign: 'center',
+			wrap: false,
+			strokeWidth: '3',
+			strokeColor: '#403E3E',
+			color: '#fff',
+			text: '0',
+			fontFamily: FONT_FAMILY
+		};
+		this.highScoreBoard = new ui.TextView(textViewParams);
+
+		textViewParams.y = textViewParams.y - textViewParams.height;
+		textViewParams.text = 'High Score';
+		var highScoreLabel = new ui.TextView(textViewParams);
 
 		// animations
 		this._animator = animate(this.shooter.activeBubble);
 
 		this.setupEvents();
+
+		this.on('app:start', this.startGame.bind(this));
 	};
 
 	this.setupEvents = function () {
-		var self = this;
-
 		// DEBUG: add/remove bubbles to hexagon on tap
 		// note: keep around for CREATE YOUR OWN LEVEL feature?
 		/*var grid = this.bubbleGrid;
@@ -149,13 +207,13 @@ exports = Class(ui.View, function (supr) {
 		var bubbleGrid = this.bubbleGrid;
 
 		// capture touches for aim and launch
-		this.onInputStart = function (evt, point) {
+		this.onInputStart = (evt, point) => {
 			this.shooter.aimAt(point);
 		};
-		this.onInputMove = function (evt, point) {
+		this.onInputMove = (evt, point) => {
 			this.shooter.aimAt(point);
 		};
-		this.onInputSelect = function (evt, point) {
+		this.onInputSelect = (evt, point) => {
 			this.shooter.aimAt(point);
 			if (!this._isLaunching) {
 				this.shooter.shouldLaunch = true;
@@ -168,24 +226,29 @@ exports = Class(ui.View, function (supr) {
 		this.shooter.on('collided', this.processCollision.bind(this));
 
 		// game states
-		bubbleGrid.on('removeBubbleSpecial', function () {
-			if (!self._isLaunching) {
+		bubbleGrid.on('addBubbleFailed', existingBubble => {
+			// if we collided with the cannon, then lose
+			var hexBubRect = existingBubble.getBoundingShape();
+			var activeBubRect = this.shooter.activeBubble.getBoundingShape();
+			if (Shooter.Static.circAndCirc(hexBubRect, activeBubRect)) {
+				this.endGame(Enums.GameStates.LOSE);
+			}
+
+			// TODO: fix occasional rogue failed-to-add bubbles
+		});
+		bubbleGrid.on('removeBubbleSpecial', () => {
+			// don't count objective bubbles if resetting the game
+			if (this.gameState === Enums.GameStates.LOSE) {
 				return;
 			}
 			sound.play('cheer');
 			if (!Object.keys(bubbleGrid.specialBubbles).length) {
-				self.endGame(Enums.GameStates.WIN);
+				this.endGame(Enums.GameStates.WIN);
 			}
-		});
-		bubbleGrid.on('addBubbleFailed', function () {
-			// TODO: fix rogue lose state from rogue failed-to-add bubbles
-			/*self.endGame(Enums.GameStates.LOSE);*/
 		});
 	};
 
 	this.startGame = function () {
-		var self = this;
-
 		var bubbleGrid = this.bubbleGrid;
 
 		// DEBUG: infinite mode, when run out repeat final layout but increase level + multiplier
@@ -195,13 +258,23 @@ exports = Class(ui.View, function (supr) {
 			this.endGame(Enums.GameStates.GAME_OVER_WIN);
 		}
 
+		/*this.message.setText('Go!');*/
+
 		// pass in 2d array of layouts to init bubble
-		this.reset(function () {
+		this.reset(() => {
 			// bubbles to capture to win level
-			bubbleGrid.once('addedBubbles', function () {
-				self.createObjectiveBubbles(self.currentLevel);
+			bubbleGrid.once('addedBubbles', () => {
+				this.createObjectiveBubbles(this.currentLevel);
 			});
 			bubbleGrid.fillRows(layout[0], layout[1]); // rows from, to
+
+			// message
+			this.message.setText(`Level ${this.currentLevel + 1}`);
+			this._animateMessage('stageLeft');
+
+			this._isLaunching = false; // may now start shooting
+
+			this.gameState = Enums.GameStates.PLAY;
 
 			// DEBUG
 			/*setInterval(bubbleGrid.pushNewRow.bind(bubbleGrid), 4000);*/
@@ -209,18 +282,59 @@ exports = Class(ui.View, function (supr) {
 	};
 
 	this.endGame = function (state) {
-		this.emit('endGame');
+		if (this.gameState === state) {
+			return;
+		}
+
+		this.gameState = state;
+		this.emit('endGame', state);
+
+		this._turnCount = 0;
+
+		this._isLaunching = true; // stop from shooting bubbles
 
 		switch (state) {
-			case Enums.GameStates.WIN:
+			case Enums.GameStates.WIN: // win level
 				// TODO: win level, dispaly feedback, tap to continue
 				this.currentLevel += 1;
-				this._turnCount = 0;
 				this.startGame();
+
 				break;
 
-			case Enums.GameStates.LOSE:
-				this.once('InputSelect', this.startGame);
+			case Enums.GameStates.LOSE: // lose level
+				// update high score?
+				this.highScore = Math.max(this.score, this.highScore);
+				this.highScoreBoard.setText(this.highScore);
+
+				// animate messages, allow touch to restart when finished
+				this.message.setText('Tap to Retry!');
+				this._animateMessage('stageTop');
+
+				this._gridOverlay.style.visible = true;
+				animate(this._gridOverlay).clear().now({
+					opacity: 1
+				}, 500, animate.linear).then(() => {
+					setTimeout(() => {
+						this.once('InputSelect', () => {
+							animate(this.message).now({
+								x: -1.5 * this.message.style.width
+							}, 400, animate.easeIn).then(() => {
+								this._gridOverlay.style.update({
+									opacity: 0,
+									visible: false
+								});
+
+								// reset stats
+								this.currentLevel = 0;
+								this.score = 0;
+								this.scoreboard.setText('0');
+
+								this.startGame();
+							});
+						});
+					}, 600);
+				});
+
 				break;
 		}
 	};
@@ -228,23 +342,34 @@ exports = Class(ui.View, function (supr) {
 	this.reset = function (cb) {
 		// wait for last launch to complete before moving on
 		if (this._isLaunching) {
-			return this.once('processCollision', function () {
+			return this.once('processCollision', () => {
 				this.reset(cb);
 			});
 		}
 
-		this.bubbleGrid.once('removedBubbles', function () {
+		this.bubbleGrid.once('removedBubbles', () => {
 			if (cb) {
 				cb();
 			}
 		});
-		this.bubbleGrid.sweep();
+
+		// clear grid with no animation if first level
+		this.bubbleGrid.sweep(this.currentLevel > 0);
 	};
 
 	this.addScore = function (numBubbles) {
+		// rack up the score board
+		numBubbles = numBubbles || 0;
 		var points = numBubbles * BUBBLE_POINTS * (this.currentLevel + 1); // lvl multiplier
 		this.score += points;
-		this.scoreboard.setText(this.score.toString());
+		setTimeout(() => {
+			var displayedScore = parseInt(this.scoreboard.getText());
+			if (displayedScore === this.score) {
+				return;
+			}
+			this.scoreboard.setText(displayedScore + 1);
+			this.addScore();
+		}, 6);
 	};
 
 	this.createObjectiveBubbles = function (numBubbles) {
@@ -295,11 +420,10 @@ exports = Class(ui.View, function (supr) {
 			return self.emit('processCollision');
 		}
 
+		// if we couldn't add bubble after collision, then there's a problem
 		var addedBubble = bubbleGrid.addBubbles([ point ], this.shooter.activeBubble.bubType)[0];
-
 		if (!addedBubble) {
-			// TODO: failed to add, trigger loseGame if > bottom row
-			return resetShooter();
+			return resetShooter(); // failed to add handled in setupEvents
 		}
 
 		var i, bub;
@@ -309,16 +433,16 @@ exports = Class(ui.View, function (supr) {
 		if (cluster.length >= MATCH_BENCH) {
 			// sound and score
 			sound.play('success');
-			self.addScore(cluster.length);
+			this.addScore(cluster.length);
 
 			// remove floaters after matches removed
-			bubbleGrid.once('removedBubbles', function () {
+			bubbleGrid.once('removedBubbles', () => {
 				floaters = bubbleGrid.getFloaters();
 				if (floaters.length) {
-					self.addScore(floaters.length);
+					this.addScore(floaters.length);
 
 					// wait til everything done before allowing player to shoot again
-					bubbleGrid.once('removedBubbles', function () {
+					bubbleGrid.once('removedBubbles', () => {
 						return resetShooter();
 					});
 					bubbleGrid.removeBubbles(floaters);
@@ -332,5 +456,48 @@ exports = Class(ui.View, function (supr) {
 		}
 
 		resetShooter();
+	};
+
+	this._animateMessage = function (ani) {
+		var self = this;
+
+		var messageWidth = this.message.style.width;
+		var messageHeight = this.message.style.height;
+		var messageY = 36;
+
+		// TODO?: abstract to use with other views
+		var animations = {
+			stageLeft: function () {
+				// sweep in, then sweep out
+				self.message.style.update({
+					x: VIEW_WIDTH,
+					y: messageY
+				});
+
+				animate(self.message).clear().now({
+					x: (VIEW_WIDTH - messageWidth) * 0.66
+				}, 400, animate.easeOut).then({
+					x: (VIEW_WIDTH - messageWidth) * 0.5
+				}, 1500, animate.linear).then({
+					x: -1.5 * messageWidth
+				}, 400, animate.easeIn); // DEBUG .wait(500).then(self._animateMessage.bind(self, 'stageLeft'));
+			},
+			stageTop: function () {
+				// sweep from top
+				self.message.style.update({
+					x: (VIEW_WIDTH - messageWidth) / 2,
+					y: -2 * messageHeight
+				});
+
+				animate(self.message).clear().now({
+					y: messageY
+				}, 500, animate.easeIn);
+			},
+			stop: function () {
+				animate(self.message).clear();
+			}
+		};
+
+		animations[ani]();
 	};
 });

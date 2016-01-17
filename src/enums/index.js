@@ -6,10 +6,11 @@ var Enums = Class(function () {
 	};
 
 	this.GameStates = {
-		WIN: 0,
-		LOSE: 1,
-		GAME_OVER_WIN: 2,
-		GAME_OVER_LOSE: 3
+		PLAY: 0,
+		WIN: 1,
+		LOSE: 2,
+		GAME_OVER_WIN: 3,
+		GAME_OVER_LOSE: 4
 	};
 });
 
