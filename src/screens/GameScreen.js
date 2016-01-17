@@ -28,6 +28,7 @@ import src.enums as Enums;
  const BUBBLE_POINTS = 50;
  const TURN_BENCH = 6;
  const FONT_FAMILY = 'Riffic';
+ const MESSAGE_POS_Y = 60;
 
 var skin = Enums.Skins.TOON;
 var path = 'resources/images/' + skin;
@@ -135,7 +136,7 @@ exports = Class(ui.View, function (supr) {
 		this.message = new ui.TextView({
 			superview: this,
 			x: VIEW_WIDTH, // offscreen
-			y: 36,
+			y: MESSAGE_POS_Y,
 			width: 200,
 			height: 36,
 			autoFontSize: true,
@@ -156,7 +157,7 @@ exports = Class(ui.View, function (supr) {
 			x: 0,
 			y: bubbleGridOffsetY,
 			width: VIEW_WIDTH,
-			height: VIEW_HEIGHT - 135,
+			height: VIEW_HEIGHT - bubbleGridOffsetY,
 			visible: false,
 			opacity: 0,
 			backgroundColor: 'rgba(0,0,0,0.5)',
@@ -293,6 +294,8 @@ exports = Class(ui.View, function (supr) {
 
 		this._isLaunching = true; // stop from shooting bubbles
 
+		var sound = soundcontroller.getSound();
+
 		switch (state) {
 			case Enums.GameStates.WIN: // win level
 				// TODO: win level, dispaly feedback, tap to continue
@@ -302,6 +305,8 @@ exports = Class(ui.View, function (supr) {
 				break;
 
 			case Enums.GameStates.LOSE: // lose level
+				sound.stop('level');
+
 				// update high score?
 				this.highScore = Math.max(this.score, this.highScore);
 				this.highScoreBoard.setText(this.highScore);
@@ -329,6 +334,7 @@ exports = Class(ui.View, function (supr) {
 								this.score = 0;
 								this.scoreboard.setText('0');
 
+								sound.play('level');
 								this.startGame();
 							});
 						});
@@ -463,7 +469,6 @@ exports = Class(ui.View, function (supr) {
 
 		var messageWidth = this.message.style.width;
 		var messageHeight = this.message.style.height;
-		var messageY = 36;
 
 		// TODO?: abstract to use with other views
 		var animations = {
@@ -471,7 +476,7 @@ exports = Class(ui.View, function (supr) {
 				// sweep in, then sweep out
 				self.message.style.update({
 					x: VIEW_WIDTH,
-					y: messageY
+					y: MESSAGE_POS_Y
 				});
 
 				animate(self.message).clear().now({
@@ -490,7 +495,7 @@ exports = Class(ui.View, function (supr) {
 				});
 
 				animate(self.message).clear().now({
-					y: messageY
+					y: MESSAGE_POS_Y
 				}, 500, animate.easeIn);
 			},
 			stop: function () {

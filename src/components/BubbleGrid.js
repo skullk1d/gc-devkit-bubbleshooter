@@ -427,7 +427,7 @@ var BubbleGrid = Class(ui.View, function (supr) {
 						this.makeBubbleSpecial(belowBubble);
 					}
 				} else if (belowBubble) {
-					this.removeBubbles([ belowBubble ]);
+					this.removeBubbles([ belowBubble ], false);
 				}
 
 				// reached top connected row (staggered rows A & B), remove
