@@ -6,6 +6,7 @@ import math.geom.intersect as intersect;
 import math.geom.Line as Line;
 
 import ui.ImageView;
+import ui.resource.Font as Font;
 import ui.resource.Image as Image;
 import ui.TextView;
 import ui.View;
@@ -34,10 +35,6 @@ var skin = Enums.Skins.TOON;
 var path = 'resources/images/' + skin;
 var bgLvl1 = new Image({ url: path + '/bgLvl1.png' });
 
-/* The GameScreen view is a child of the main application.
- * By adding the scoreboard and the grid as it's children,
- * everything is visible in the scene graph.
- */
 exports = Class(ui.View, function (supr) {
 	this.init = function (options) {
 		options = merge(options, {
@@ -127,7 +124,7 @@ exports = Class(ui.View, function (supr) {
 			strokeColor: '#403E3E',
 			color: '#fff',
 			text: '0',
-			fontFamily: FONT_FAMILY
+			fontFamily: FONT_FAMILY // font family string for riffic
 		};
 		this.scoreboard = new ui.TextView(textViewParams);
 
