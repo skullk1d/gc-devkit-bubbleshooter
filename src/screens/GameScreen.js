@@ -73,6 +73,8 @@ exports = Class(ui.View, function (supr) {
 		this.style.width = VIEW_WIDTH;
 		this.style.height = VIEW_HEIGHT;
 
+		this._sound = soundcontroller.getSound();
+
 		var shooterHeight = BubbleGrid.Static.HEX_WIDTH;
 		var bubbleGridOffsetX = BubbleGrid.Static.HEX_WIDTH * 0.2;
 		var bubbleGridOffsetY = 60 * 2;
@@ -205,7 +207,6 @@ exports = Class(ui.View, function (supr) {
 			(grid.getBubbleAt(point) ? grid.removeBubbles : grid.addBubbles).call(grid, [ { point: point } ]);
 		};*/
 
-		var sound = soundcontroller.getSound();
 		var bubbleGrid = this.bubbleGrid;
 		var shooter = this.shooter;
 
@@ -220,7 +221,7 @@ exports = Class(ui.View, function (supr) {
 			shooter.aimAt(point);
 			if (!shooter.isLaunching && this.gameState === Enums.GameStates.PLAY) {
 				shooter.launch();
-				sound.play('shoot');
+				this._sound.play('shoot');
 			}
 		};
 
@@ -271,7 +272,7 @@ exports = Class(ui.View, function (supr) {
 			if (this.gameState === Enums.GameStates.LOSE) {
 				return;
 			}
-			sound.play('cheer');
+			this._sound.play('cheer');
 			if (!Object.keys(bubbleGrid.specialBubbles).length) {
 				this.endGame(Enums.GameStates.WIN);
 			}
@@ -292,6 +293,26 @@ exports = Class(ui.View, function (supr) {
 
 		/*this.message.setText('Go!');*/
 
+		// if no game state, first run, Tap to play!
+		if (!this.gameState) {
+			this.message.setText('Tap to PLAY!');
+			this._animateMessage('stageTop');
+
+			return setTimeout(() => {
+				this.once('InputSelect', () => {
+					this._sound.play('level');
+					animate(this.message).now({
+						x: -1.5 * this.message.style.width
+					}, 400, animate.easeIn).then(() => {
+						this._gridOverlay.style.update({
+							opacity: 0,
+							visible: false
+						});
+					}).then(this.buildLevel.bind(this, layout));
+				});
+			}, 400);
+		}
+
 		// pass in 2d array of layouts to init bubbles
 		this.buildLevel(layout);
 	};
@@ -305,8 +326,6 @@ exports = Class(ui.View, function (supr) {
 		this.gameState = state;
 		this._turnCount = 0;
 
-		var sound = soundcontroller.getSound();
-
 		switch (state) {
 			case Enums.GameStates.WIN: // win level
 				// TODO: win level, dispaly feedback, tap to continue
@@ -316,7 +335,7 @@ exports = Class(ui.View, function (supr) {
 				break;
 
 			case Enums.GameStates.LOSE: // lose level
-				sound.stop('level');
+				this._sound.stop('level');
 
 				// update high score?
 				this.highScore = Math.max(this.score, this.highScore);
@@ -343,7 +362,7 @@ exports = Class(ui.View, function (supr) {
 								this.reset();
 								this.startGame();
 
-								sound.play('level');
+								this._sound.play('level');
 							});
 						});
 					}, 600);
@@ -422,8 +441,7 @@ exports = Class(ui.View, function (supr) {
 		var self = this;
 
 		// handle additions, matches, removals
-		var sound = soundcontroller.getSound();
-		sound.play('bubble');
+		this._sound.play('bubble');
 
 		var bubbleGrid = this.bubbleGrid;
 
@@ -460,7 +478,7 @@ exports = Class(ui.View, function (supr) {
 		cluster = bubbleGrid.getClusterAt(addedBubble, true, true);
 		if (cluster.length >= MATCH_BENCH) {
 			// sound and score
-			sound.play('success');
+			this._sound.play('success');
 			this.addScore(cluster.length);
 
 			// remove floaters after matches removed

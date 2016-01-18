@@ -7,8 +7,6 @@ import ui.StackView as StackView;
 import src.screens.TitleScreen as TitleScreen;
 import src.screens.GameScreen as GameScreen;
 
-import src.components.soundcontroller as soundcontroller;
-
 /* Your application inherits from GC.Application, which is
  * exported and instantiated when the game is run.
  */
@@ -21,16 +19,12 @@ exports = Class(GC.Application, function () {
 		var titlescreen = new TitleScreen();
 		var gamescreen = new GameScreen();
 
-		var sound = soundcontroller.getSound();
-
 		this.view.style.backgroundColor = '#000'; // '#3DC1F2';
 
 		// Create a stackview of size 320x480, then scale it to fit horizontally
 		// Add a new StackView to the root of the scene graph
 		var rootView = new StackView({
 			superview: this,
-			// x: device.width / 2 - 160,
-			// y: device.height / 2 - 240,
 			x: 0,
 			y: 0,
 			width: 320,
@@ -40,7 +34,6 @@ exports = Class(GC.Application, function () {
 		});
 
 		function startApp() {
-		 	sound.play('level');
 		 	rootView.push(gamescreen);
 			gamescreen.emit('app:start');
 		}
