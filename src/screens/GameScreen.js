@@ -426,7 +426,7 @@ exports = Class(ui.View, function (supr) {
 			while (!randBub || randBub.isSpecial) {
 				var letterIds = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
 				var randBubId = letterIds[Math.floor(Math.random() * (letterIds.length))] +
-					Math.floor(Math.random() * (bubbleGrid.hexesPerLetterRow) + 1);
+					Math.floor(Math.random() * (bubbleGrid.hexesPerRow) + 1);
 				randBub = bubbleGrid.bubbles[randBubId];
 			}
 
