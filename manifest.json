@@ -1,7 +1,7 @@
 {
   "appID": "0ba3f75039e6476ca48967f4b562dd16",
   "dependencies": {
-    "devkit-core": "https://github.com/gameclosure/devkit-core#v4.2.1"
+    "devkit-core": "https://github.com/gameclosure/devkit-core#v4.5.3"
   },
   "shortName": "bubbleshooter",
   "studio": {
